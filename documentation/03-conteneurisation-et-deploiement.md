@@ -1,5 +1,7 @@
 # Principes de conteneurisation et de déploiement
 
+> **Scénario A (pipeline idéal).** La version adaptée à l'état actuel du projet figure au chapitre 5.
+
 ## 1. Principes de conteneurisation
 
 | Principe | Application à MicroCRM |
@@ -85,10 +87,10 @@ Conformément au plan de testing (partie 1), **aucune image n'est construite sur
 | Événement | Image construite | Publiée dans le registre |
 |-----------|------------------|--------------------------|
 | Push sur `features/*` ou `fix/*` | Non | – |
-| PR vers `develop` | Non | – |
-| PR vers `main` | Oui, pour le scan Trivy et le test de fumée | Non (image jetable, supprimée à la fin du job) |
-| Fusion sur `develop` | Oui | Oui, tags SHA, `develop`, `X.Y.Z-SNAPSHOT` |
-| Fusion sur `main` | Oui | Oui, tags SHA, `main`, version |
+| PR vers `develop` | Oui, pour vérifier le build et le test de fumée | Non (image jetable) |
+| PR vers `main` | Oui, pour le test de fumée et le scan Trivy | Non (image jetable, supprimée à la fin du job) |
+| Fusion sur `develop` | Oui : build, test de fumée, puis push | Oui, tags SHA, `develop`, `X.Y.Z-SNAPSHOT` |
+| Fusion sur `main` | Oui : build, test de fumée, puis push | Oui, tags SHA, `main`, version |
 
 ### 3.2 Tags appliqués à chaque build publié
 
@@ -114,11 +116,49 @@ Conformément au plan de testing (partie 1), **aucune image n'est construite sur
 - Les images versionnées (`vX.Y.Z`) sont conservées, car elles permettent le retour arrière.
 - Les images de plus de 6 mois sans usage sont revues lors de la tâche hebdomadaire.
 
-### 3.5 Publication et sécurité
+### 3.5 Valider avant la fusion, publier après
+
+Le build est vérifié **avant** la fusion (sur la PR) et la publication a lieu **après** : une fois la PR fusionnée, plus rien ne peut empêcher la fusion, il faut donc que l'essentiel soit prouvé avant.
+
+| Moment | Étapes | Si échec |
+|--------|--------|----------|
+| **PR** (vers `develop` ou `main`) | Build de l'image, test de fumée ; sur `main`, scan Trivy en plus | La fusion est bloquée |
+| **Fusion** | Workflow de publication : **build, test de fumée, scan, puis push**, puis SBOM et tag de version | Rien n'est publié ; voir § 3.8 |
+
+- L'image publiée est reconstruite sur le commit de fusion, qui peut différer de celui testé dans la PR. Le test de fumée est donc **rejoué avant le push** : on ne publie jamais une image qui n'a pas démarré.
+- Ainsi, seule une cause d'infrastructure (registre, permissions, réseau) peut encore faire échouer la dernière étape.
+
+### 3.6 Publication et sécurité
 
 - Seules les fusions sur `develop` et sur `main` publient des images ; les PR construisent au plus une image jetable, jamais publiée.
 - Le jeton de publication est limité à l'écriture de paquets (`packages: write`) et n'est exposé qu'aux workflows concernés (voir plan de sécurité).
 - Chaque image publiée est scannée (Trivy) avant promotion.
+
+### 3.7 SBOM publié avec chaque image
+
+Chaque image publiée est accompagnée de son **SBOM** (inventaire de ses composants, format CycloneDX), généré sur l'image elle-même et non sur le code source : il inclut ainsi les paquets de l'OS, le JRE et Caddy (plan de sécurité, « SBOM »).
+
+| Aspect | Règle |
+|--------|-------|
+| Génération | Étape du workflow de publication, **après le push** de l'image et sur son digest, avec Trivy ou Syft (`docker buildx build --sbom=true` est une alternative qui l'attache à l'image) |
+| Identification | Le SBOM porte le SHA de l'image : il décrit exactement ce qui est déployé |
+| Stockage | Artefact du workflow ; pour `main`, **joint à la release `vX.Y.Z`** |
+| Durée | Identique à celle de l'image (§ 3.4) |
+| Rescan | Hebdomadaire, sur les SBOM des images en pré-production et en production (partie 1, § 3.5) |
+| Condition de déploiement | Un SBOM doit exister pour le SHA à déployer, au même titre que l'image publiée et scannée (§ 6.2) |
+
+- Un SBOM par cible publiée (`front`, `back`), et un pour `standalone` s'il est déployé.
+- La génération n'est pas bloquante pour le build, mais son absence l'est pour la **promotion vers la production**.
+
+### 3.8 Échec après la fusion
+
+Si le workflow de publication échoue après la fusion, le code est déjà intégré mais **rien n'est publié ni déployé** : la version précédente reste en place.
+
+1. **Relancer le workflow** (*Re-run jobs* ou `workflow_dispatch`) si la cause est temporaire (réseau, registre). La publication repart du même SHA.
+2. **Corriger en avant** : nouvelle PR avec le correctif (les branches étant protégées, c'est le chemin normal).
+3. **Revert** : PR qui annule le commit fautif si le correctif prend du temps.
+4. Le tag de version et la release ne sont créés **qu'après** une publication réussie, pour ne jamais avoir une release sans image.
+5. L'échec déclenche une notification et une issue. Tant que `develop` ou `main` est en échec, aucune nouvelle fusion n'est faite avant correction.
 
 ## 4. Environnements et stratégie de déploiement
 
@@ -155,7 +195,7 @@ Le déploiement suit une chaîne unique, dans laquelle chaque étape conditionne
 |---|-------|----|----------------------|
 | 1 | **Build** des images (cibles `front` et `back`) | Runner GitHub Actions | Tests, qualité et sécurité au vert sur la PR (partie 1 et 2) |
 | 2 | **Scan** des images (Trivy) | Runner | Aucune vulnérabilité au-dessus du seuil (plan de sécurité) |
-| 3 | **Publication** dans le registre, avec les tags du § 3.2 | GHCR | Scan réussi ; uniquement après fusion sur `develop` ou `main` |
+| 3 | **Publication** dans le registre, avec les tags du § 3.2, puis génération du SBOM (§ 3.7) | GHCR | Scan réussi ; uniquement après fusion sur `develop` ou `main` |
 | 4 | **Déploiement** de l'image par SHA ou digest | Serveur de l'environnement | Image publiée |
 | 5 | **Vérification** : healthcheck puis test de fumée | Environnement déployé | Les services répondent dans le délai défini |
 | 6 | **Retour arrière automatique** si l'étape 5 échoue | Environnement | Retour à la version précédente (§ 5) |
@@ -178,8 +218,111 @@ Mise en œuvre par environnement :
 
 ## 5. Retour arrière (rollback)
 
-*À rédiger.*
+*Condition d'activation : au moins un environnement déployé (phase 2). Le workflow `rollback.yml` et la sauvegarde avant déploiement relèvent de la phase 3.*
+
+### 5.1 Principe
+
+Le retour arrière consiste à **redéployer une image précédente, sans rien reconstruire**. Il est possible parce que :
+
+- chaque image publiée a un tag **immuable** (SHA, `vX.Y.Z`) conservé dans le registre (§ 3.2 et 3.4) : la version précédente existe toujours, identique à ce qui a été testé ;
+- le déploiement est piloté par une seule valeur, `IMAGE_TAG`, passée à Docker Compose (§ 2.3) : changer de version, avant ou arrière, revient à changer cette valeur.
+
+On ne s'appuie **jamais sur un tag mobile** (`main`, `develop`) pour revenir en arrière : il désigne déjà la version défaillante.
+
+### 5.2 Mémoriser la version précédente
+
+À chaque déploiement réussi, le workflow enregistre le tag qui était en place avant la mise à jour :
+
+- dans un fichier sur le serveur de l'environnement (par exemple `previous.env` contenant `IMAGE_TAG=sha-…`), et
+- dans l'historique des déploiements de GitHub Environments (version, auteur, date).
+
+Seule la version **déployée avec succès** est retenue comme version précédente.
+
+### 5.3 Cas de la pré-production en échec
+
+Le déploiement en pré-production suit la fusion d'une PR sur `main`. Si les healthchecks ou le test de fumée échouent :
+
+1. **Retour automatique** : le workflow redéploie le tag précédent (`IMAGE_TAG` restauré, puis `docker compose up -d`) et vérifie à nouveau la santé.
+2. **Notification et issue** : l'équipe est prévenue et une issue est créée (version défaillante, version restaurée, lien vers l'exécution), comme pour les échecs nocturnes.
+3. **Production protégée** : la production n'est jamais déployée tant que la pré-production n'est pas saine (§ 4.2). Elle reste donc sur sa version précédente ; rien n'est à restaurer côté production.
+4. **Correction** : `main` contient pourtant le code défaillant. Comme `main` est protégée (PR obligatoire), on corrige par une nouvelle PR : soit un **revert** du commit fautif, soit un correctif. La CI repasse, une nouvelle image est publiée et déployée.
+
+### 5.4 Retour arrière manuel
+
+Un workflow `rollback.yml` (déclenchement manuel, `workflow_dispatch`) permet de revenir à une version choisie, y compris en production :
+
+| Paramètre | Rôle |
+|-----------|------|
+| Environnement | `dev`, `preprod` ou `prod` |
+| Tag à déployer | Un tag immuable existant dans le registre (SHA ou `vX.Y.Z`) ; par défaut, la version précédente enregistrée |
+
+- Pour la production, le workflow demande la même **approbation** qu'un déploiement normal.
+- Il vérifie que le tag existe, déploie, puis exécute healthchecks et test de fumée.
+- Le retour arrière est **rapide** (quelques minutes) car aucune compilation n'est nécessaire.
+
+### 5.5 La base de données : le point délicat
+
+Redéployer une ancienne image **ne défait pas** les modifications de la base. Un retour arrière peut échouer si la nouvelle version a modifié la structure ou les données.
+
+- **Sauvegarde avant chaque déploiement** en pré-production et en production (dump ou volume, selon la méthode retenue en partie 1, § 3.6), pour pouvoir restaurer si nécessaire.
+- **Modifications de schéma compatibles avec la version précédente** : ajouter avant de supprimer (une colonne ajoutée n'empêche pas l'ancienne version de tourner ; une colonne supprimée si). Le retrait se fait dans une version ultérieure.
+- Si une restauration de base est nécessaire, elle est déclenchée manuellement, car elle fait perdre les données écrites depuis la sauvegarde.
+- Aujourd'hui, la base est en mémoire (HSQLDB sans configuration) et se réinitialise à chaque démarrage : le problème n'existe pas encore, mais apparaîtra dès que la base sera persistante.
+
+### 5.6 Limites
+
+- Le retour arrière automatique suppose une version précédente **saine** : au premier déploiement d'un environnement, il n'y en a pas.
+- Un retour automatique répété (boucle) est évité : une seule tentative, puis arrêt et alerte.
+- Un défaut qui n'apparaît qu'après quelques heures (fuite mémoire, erreur sur un cas rare) n'est pas détecté par le test de fumée ; les tests e2e nocturnes et la surveillance servent à le repérer, et le retour arrière manuel est alors utilisé.
 
 ## 6. Lien avec les plans de test et de sécurité
 
-*Quels contrôles conditionnent le déploiement.*
+Le déploiement n'est pas une étape isolée : il n'a lieu que si les contrôles des parties 1 et 2 ont réussi. Chaque étape ouvre la suivante, et un échec l'arrête.
+
+### 6.1 Les contrôles qui conditionnent chaque étape
+
+| Étape | Contrôles à réussir | Défini en |
+|-------|---------------------|-----------|
+| Push sur `features/*` ou `fix/*` | Tests unitaires et d'intégration, qualité (SonarQube Cloud), détection de secrets | Partie 1 § 3.2, partie 2 § 4 |
+| PR vers `develop` | Idem, plus SAST (CodeQL), dépendances et licences, scan du `Dockerfile`, build de l'image et test de fumée ; relecture et approbation | Partie 1 § 3.2, partie 2 § 4 et 6 |
+| Fusion sur `develop` | Build, test de fumée, scan, puis publication | § 3.5 |
+| **Déploiement en dev** | Image publiée et scannée ; healthcheck | § 4.4 |
+| PR vers `main` | Tous les contrôles précédents, plus scan des images (Trivy) ; relecture et approbation | Partie 1 § 3.2 d) |
+| **Déploiement en pré-production** | Fusion sur `main` ; image publiée et scannée ; healthcheck puis test de fumée | § 4.4 |
+| **Déploiement en production** | Pré-production saine ; approbation manuelle ; **même image** que la pré-production | § 4.2 |
+
+### 6.2 Le déploiement est bloqué quand…
+
+- un test, le contrôle de qualité ou le quality gate échoue ;
+- une vulnérabilité au-dessus du seuil est détectée dans le code, les dépendances ou l'image (critique et élevée, plan de sécurité § 4) ;
+- un secret est détecté dans le code ;
+- la PR n'a pas été relue et approuvée, ou ses conversations ne sont pas résolues ;
+- le test de fumée ou les healthchecks échouent (avec retour arrière, § 5) ;
+- il n'y a pas d'image publiée pour le SHA à déployer ;
+- le SBOM de l'image n'existe pas, pour une promotion vers la production.
+
+Ces blocages sont appliqués par les **règles de protection de branche** et par les **vérifications requises** : ils ne reposent pas sur la discipline des développeurs.
+
+### 6.3 Ce qui n'arrête pas le déploiement, mais le signale
+
+Les contrôles périodiques surveillent des environnements déjà en ligne et ne bloquent pas un déploiement en cours ; un échec produit une **notification et une issue** :
+
+| Contrôle | Fréquence | Effet d'un échec |
+|----------|-----------|------------------|
+| Tests e2e sur dev (`develop`) et pré-production (`main`) | Chaque nuit | Issue ; à traiter avant le prochain déploiement en production |
+| Audit des dépendances | Chaque nuit | Issue ; correction dans le délai prévu (plan de sécurité § 7) |
+| Rebuild sans cache et scan des images | Chaque semaine | Issue ; mise à jour des images de base |
+| Sauvegarde et restauration de la base | Chaque semaine | Issue ; la restauration doit être corrigée avant tout déploiement qui modifie la base |
+
+- **Règle proposée** : une issue nocturne ou hebdomadaire ouverte et non résolue sur la pré-production fait l'objet d'une vérification avant l'approbation du déploiement en production. Le relecteur doit explicitement la lever ou la reporter.
+- Les vulnérabilités critiques détectées sur une version **déjà en production** déclenchent un correctif rapide (48 heures, plan de sécurité § 7), même hors cycle normal de livraison.
+
+### 6.4 Ce que chaque plan apporte au déploiement
+
+| Plan | Garantie apportée |
+|------|-------------------|
+| Plan de testing (partie 1) | Le code **fonctionne** et reste de qualité ; il continue de fonctionner dans le temps (nuit, semaine) ; les données peuvent être restaurées |
+| Plan de sécurité (partie 2) | Le code, les dépendances et les images ne contiennent pas de faille connue au-dessus du seuil ; les secrets sont protégés ; le circuit de livraison est contrôlé |
+| Conteneurisation et déploiement (partie 3) | Ce qui a été testé et scanné est **exactement** ce qui est livré ; la mise en ligne est tracée, vérifiée et réversible |
+
+Le point commun est l'**image immuable identifiée par son SHA** : elle est testée, scannée, publiée puis déployée sans être modifiée. Tous les contrôles s'appliquent à la même chose que celle qui part en production.

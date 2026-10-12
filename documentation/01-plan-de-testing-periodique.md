@@ -1,5 +1,7 @@
 # Plan de testing périodique
 
+> **Scénario A (pipeline idéal).** La version adaptée à l'état actuel du projet figure au chapitre 5.
+
 ## 1. Objectifs
 
 Le plan de testing définit à quelle fréquence chaque type de test est exécuté automatiquement, et dans quel but. Le principe : **plus la fréquence est élevée, plus les tests doivent être rapides** ; les contrôles longs ou coûteux sont déplacés sur des cycles plus espacés.
@@ -7,7 +9,7 @@ Le plan de testing définit à quelle fréquence chaque type de test est exécut
 | Objectif | Moyen |
 |----------|-------|
 | Détecter une régression au plus tôt | Tests rapides à chaque push et pull request |
-| Garantir que `main` est toujours livrable | Tests complets et build des images à chaque merge |
+| Garantir que `main` est toujours livrable | Build et test de fumée de l'image sur chaque PR ; build, test de fumée puis publication à chaque merge |
 | Détecter les dérives non liées au code (dépendances, images de base) | Exécutions planifiées, la nuit et chaque semaine |
 | Garder une trace mesurable de la qualité | Rapports de tests et de couverture conservés comme artefacts |
 
@@ -27,10 +29,10 @@ Constat : la couverture actuelle est faible côté back (deux classes de test). 
 
 | Fréquence | Déclencheur GitHub Actions | Tests exécutés | Objectif |
 |-----------|----------------------------|----------------|----------|
-| À chaque push sur `features/*` ou `fix/*` | `push` avec filtre `branches: [features/**, fix/**]` | Tests fonctionnels (unitaires et d'intégration) back et front, **contrôle de la qualité du code**, build des deux applications | Retour rapide au développeur (cible < 10 min) avant même d'ouvrir une PR |
-| À chaque pull request vers `develop` | `pull_request` ciblant `develop` | Mêmes contrôles que sur push (tests, qualité, couverture) **plus sécurité et dépendances** | Condition obligatoire avant la revue et la validation de la PR |
-| À chaque pull request vers `main` | `pull_request` ciblant `main` | Tous les contrôles d'une PR vers `develop`, **plus build et scan des images Docker et test de fumée du conteneur** | Prouver que ce qui va être livré est construisible, sain et démarre |
-| À chaque fusion de PR sur `develop` ou `main` | `push` sur `develop` / `main` (résultat de la fusion) | Tout ce qui précède, plus build des images Docker | Vérifier que la branche reste stable et livrable après intégration |
+| À chaque push sur `features/*` ou `fix/*` | `push` avec filtre `branches: [features/**, fix/**]` | Tests fonctionnels (unitaires et d'intégration) back et front, **contrôle de la qualité du code**, **détection de secrets**, build des deux applications | Retour rapide au développeur (cible < 10 min) avant même d'ouvrir une PR |
+| À chaque pull request vers `develop` | `pull_request` ciblant `develop` | Mêmes contrôles que sur push (tests, qualité, couverture) **plus sécurité et dépendances, build de l'image et test de fumée** | Condition obligatoire avant la revue et la validation de la PR |
+| À chaque pull request vers `main` | `pull_request` ciblant `main` | Tous les contrôles d'une PR vers `develop`, **plus scan des images Docker (Trivy)** | Prouver que ce qui va être livré est construisible, sain et démarre |
+| À chaque fusion de PR sur `develop` ou `main` | `push` sur `develop` / `main` (résultat de la fusion) | Tout ce qui précède, plus **build, test de fumée, scan puis publication** des images (partie 3, § 3.5) | Vérifier que la branche reste stable et livrable après intégration |
 | Toutes les nuits | `schedule` : `0 2 * * *` (02:00 UTC), sur `develop` **et** `main` | Suite complète depuis un cache vierge, **tests end-to-end**, audit des dépendances | Détecter une régression introduite par une dépendance externe ou un test instable ; en cas d'échec : notification et création d'une issue |
 | Toutes les semaines | `schedule` : `0 3 * * 0` (dimanche, 03:00 UTC) | Rebuild des images sans cache, scan de vulnérabilités, **sauvegarde et test de restauration de la base de données**, revue des tests instables | Contrôle en profondeur et mise à jour des images de base |
 
@@ -74,23 +76,25 @@ Lors d'une PR vers `develop` (ou `main`), on ajoute aux contrôles précédents 
 | Analyse de sécurité du code (SAST) | CodeQL (Java et TypeScript) | Failles dans le code : injection, mauvaise validation des entrées… |
 | Vulnérabilités des dépendances | `npm audit` (front), OWASP Dependency-Check (back), Dependency Review de GitHub | Dépendances connues vulnérables, **y compris celles que la PR ajoute ou met à jour** |
 | Licences des dépendances | Dependency Review de GitHub | Licences incompatibles avec le projet |
-| Détection de secrets | Gitleaks ou secret scanning de GitHub | Mots de passe, clés ou jetons commités par erreur |
+| Détection de secrets | Gitleaks ou secret scanning de GitHub | Mots de passe, clés ou jetons commités par erreur (**exécutée aussi dès le push**, car rapide et à traiter immédiatement) |
 
-- Ces contrôles sont réservés aux PR plutôt qu'aux pushes : ils sont plus lents, et la PR est le moment où la décision de fusion est prise.
+- À l'exception de la détection de secrets, ces contrôles sont réservés aux PR plutôt qu'aux pushes : ils sont plus lents, et la PR est le moment où la décision de fusion est prise.
 - Un échec de ces contrôles bloque la fusion, comme un test en échec. Les seuils de gravité (par exemple, bloquer à partir de « élevée ») seront fixés dans le plan de sécurité.
 - Le détail des outils, des seuils et du traitement des vulnérabilités est donné dans la partie 2.
 
-**d) Contrôles propres aux PR vers `main`**
+**d) Contrôles sur l'image Docker (principe : valider avant la fusion, publier après)**
 
-`main` est la dernière barrière avant la livraison. En plus de tout ce qui précède, une PR vers `main` exécute :
+Une fois la PR fusionnée, plus rien ne peut empêcher la fusion : l'image doit donc être vérifiée **sur la PR**, et la publication n'intervient qu'**après**. La PR exécute :
 
-| Contrôle | Détail | Objectif |
-|----------|--------|----------|
-| Build des images Docker | Cibles `front`, `back` et `standalone` du `Dockerfile` | Vérifier que le `Dockerfile` produit bien ce qui sera livré |
-| Scan des images | Trivy sur les images construites ; seuil de gravité bloquant défini dans le plan de sécurité | Détecter les vulnérabilités de l'OS et des images de base, invisibles dans le code |
-| Test de fumée | Démarrer l'image `standalone`, puis vérifier que la page d'accueil répond et qu'un appel à l'API aboutit (par exemple la liste des organisations) | S'assurer que le conteneur démarre réellement : des tests au vert ne le garantissent pas |
+| Contrôle | PR vers `develop` | PR vers `main` | Détail et objectif |
+|----------|:---:|:---:|--------------------|
+| Build des images | oui | oui | Cibles `front`, `back` et `standalone` du `Dockerfile` : vérifier qu'il produit bien ce qui sera livré |
+| Test de fumée | oui | oui | Démarrer l'image `standalone`, vérifier que la page d'accueil répond et qu'un appel à l'API aboutit (par exemple la liste des organisations) : des tests au vert ne garantissent pas que le conteneur démarre |
+| Scan des images | | oui | Trivy ; seuil de gravité bloquant défini dans le plan de sécurité : détecter les vulnérabilités de l'OS et des images de base, invisibles dans le code |
 
-- Ces contrôles sont limités aux PR vers `main` car ils sont les plus longs ; `develop` ne reconstruit les images qu'après fusion (§ 3.3).
+- Les images de PR sont **jetables** : jamais publiées, supprimées à la fin du job.
+- Le scan, plus long, est réservé aux PR vers `main` ; `main` reste la dernière barrière avant la livraison.
+- Après la fusion, le workflow de publication **rejoue build et test de fumée avant le push**, car l'image est reconstruite sur le commit de fusion (partie 3, § 3.5). En cas d'échec après fusion : partie 3, § 3.8.
 - Le test de fumée échoue si le conteneur ne répond pas dans un délai défini (par exemple 60 secondes).
 
 **e) Organisation du pipeline**
@@ -103,18 +107,19 @@ Lors d'une PR vers `develop` (ou `main`), on ajoute aux contrôles précédents 
 
 - Mêmes tests qu'en § 3.2, avec mesure de la couverture.
 - La promotion de `develop` vers `main` se fait **uniquement par pull request**, avec les mêmes exigences : tests au vert, relecture et validation par un relecteur.
-- Les contrôles propres à `main` (§ 3.2 d) s'exécutent **avant** la fusion, sur la PR.
+- Le build, le test de fumée (et, pour `main`, le scan) des images s'exécutent **avant** la fusion, sur la PR (§ 3.2 d).
 - Après fusion sur `main`, la CI vérifie que la branche reste livrable. Le déclenchement éventuel du déploiement est traité dans la partie 3.
-- Construction des images Docker (cibles `front`, `back`, `standalone`) pour vérifier que le `Dockerfile` reste valide. La publication est traitée dans la partie 3.
+- Après fusion : build, test de fumée, scan puis **publication** des images (cibles `front`, `back`, `standalone`), traitées dans la partie 3, § 3.5.
 
 ### 3.4 Exécutions nocturnes
 
+- *Condition d'activation : tests e2e écrits et environnements dev / pré-production déployés (phase 3, voir feuille de route). Avant cela, la nuit ne lance que la suite complète sans cache et l'audit des dépendances.*
 - Objectif propre : une régression peut apparaître **sans qu'aucun commit n'ait été fait** (dépendance transitive modifiée, image de base mise à jour, test dépendant de l'horloge ou de l'ordre d'exécution).
 - Pour cela, le job nocturne s'exécute **sans cache** Gradle et npm.
 - Il lance les **tests end-to-end** : l'application complète (image `standalone` ou front + back) est démarrée, puis les parcours utilisateurs principaux sont rejoués (outil à choisir, par exemple Cypress ou Playwright ; aucun test e2e n'existe aujourd'hui).
 - Il s'exécute **sur `develop` et sur `main`**, car ces deux branches peuvent diverger et chacune doit être vérifiée. Une workflow planifiée ne tourne que sur la branche par défaut ; le workflow utilise donc une matrice `ref: [develop, main]` qui récupère explicitement chaque branche.
 - Les e2e visent l'instance déployée : l'environnement **dev** pour `develop`, l'environnement de **pré-production** pour `main` (partie 3, § 4). Les e2e ne tournent jamais contre la production.
-- Il lance aussi `npm audit` et la vérification des dépendances (détails dans le plan de sécurité).
+- Il lance aussi `npm audit` et OWASP Dependency-Check (ou Trivy en mode système de fichiers) : Dependency Review de GitHub ne fonctionne que sur les PR, il ne peut pas servir la nuit (détails dans le plan de sécurité).
 - **En cas d'erreur** : notification de l'équipe et **création automatique d'une issue** (§ 6). Si une issue ouverte existe déjà pour la même branche, un commentaire y est ajouté au lieu d'en créer une nouvelle, afin d'éviter une issue par nuit.
 
 ### 3.5 Exécutions hebdomadaires
@@ -125,6 +130,8 @@ Lors d'une PR vers `develop` (ou `main`), on ajoute aux contrôles précédents 
 - **Sauvegarde et test de restauration de la base de données** (§ 3.6).
 
 ### 3.6 Sauvegarde et test de restauration (hebdomadaire)
+
+*Condition d'activation : base de données persistante (phase 3). Tant que la base est en mémoire, cette procédure n'est pas mise en place.*
 
 **Objectif** : une sauvegarde n'a de valeur que si elle se restaure. On vérifie chaque semaine, non seulement qu'une sauvegarde est produite, mais qu'elle permet de reconstituer une base exploitable.
 
@@ -190,11 +197,11 @@ Pratiques communes :
 | Build back et front | Obligatoire |
 | Qualité du code (lint, analyse statique, quality gate) | Obligatoire sur push et PR ; seuils appliqués au code nouveau |
 | Sécurité et dépendances (SAST, audit, licences, secrets) | Obligatoire sur PR ; seuil de gravité bloquant défini dans le plan de sécurité |
-| Images Docker construites et saines (PR vers `main`) | Obligatoire : les trois cibles se construisent et le scan Trivy ne dépasse pas le seuil |
-| Test de fumée du conteneur (PR vers `main`) | Obligatoire : l'image `standalone` démarre et répond |
+| Images Docker construites (PR vers `develop` et `main`) et saines (scan Trivy, PR vers `main`) | Obligatoire : les trois cibles se construisent ; sur `main`, le scan ne dépasse pas le seuil |
+| Test de fumée du conteneur (PR vers `develop` et `main`) | Obligatoire : l'image `standalone` démarre et répond |
 | Couverture | Outils à ajouter : JaCoCo (back) et `--code-coverage` de Karma (front) |
 | Seuil de couverture | **Phase 1** : mesurer et publier sans bloquer. **Phase 2** : fixer un seuil minimal proche de la valeur mesurée, puis le relever progressivement. Une baisse de couverture sur une PR est signalée |
-| Durée | Alerte si le pipeline push / PR dépasse 10 minutes |
+| Durée | Alerte si le pipeline dépasse **10 minutes sur push** et **20 minutes sur PR** (la PR cumule tests, qualité, CodeQL et audit des dépendances ; les jobs étant parallèles, la durée est celle du plus lent) |
 
 Les chiffres exacts de seuil seront fixés après la première mesure : en choisir un maintenant serait arbitraire.
 

@@ -1,5 +1,7 @@
 # Plan de sécurité
 
+> **Scénario A (pipeline idéal).** La version adaptée à l'état actuel du projet figure au chapitre 5.
+
 ## 1. Objectifs et démarche
 
 L'objectif est d'**anticiper les failles les plus courantes** avant qu'elles n'atteignent la production, en s'appuyant sur le référentiel **OWASP Top 10** (édition 2025, qui remplace celle de 2021). Pour chaque catégorie, le plan indique :
@@ -31,7 +33,7 @@ Ces constats sont des **hypothèses de travail** à confirmer par les scans ; il
 |-----------|----------------------|---------------------|------------|
 | **A01 Broken Access Control** (inclut SSRF) | API ouverte à tous, lecture et écriture ; accès direct aux objets par identifiant | Revue de code ; tests d'intégration vérifiant qu'une requête non authentifiée est refusée (une fois l'authentification en place) | Introduire Spring Security ; refus par défaut ; limiter les ressources exposées par Spring Data REST (`@RepositoryRestResource(exported = false)` sur ce qui ne doit pas l'être) |
 | **A02 Security Misconfiguration** | CORS ouvert, en-têtes absents, conteneur en root, console ou endpoints de débogage activés | Scan de configuration des images et du `Dockerfile` (Trivy, `hadolint`) | Restreindre CORS aux origines connues ; en-têtes dans Caddy ; utilisateur non-root ; configuration distincte par environnement |
-| **A03 Software Supply Chain Failures** | Dépendances Gradle et npm vulnérables ou compromises ; images de base non maîtrisées ; actions GitHub tierces | Dependency Review et Dependabot, `npm audit`, OWASP Dependency-Check, Trivy ; épinglage des actions par SHA | Fichiers de verrouillage (`package-lock.json`, verrouillage Gradle) ; images épinglées par version ou digest ; mises à jour régulières |
+| **A03 Software Supply Chain Failures** | Dépendances Gradle et npm vulnérables ou compromises ; images de base non maîtrisées ; actions GitHub tierces | Dependency Review et Dependabot, `npm audit`, OWASP Dependency-Check, Trivy ; épinglage des actions par SHA | Fichiers de verrouillage (`package-lock.json`, verrouillage Gradle) ; images épinglées par version ou digest ; mises à jour régulières ; **SBOM de chaque image livrée** |
 | **A04 Cryptographic Failures** | Trafic non chiffré, secrets ou données personnelles en clair | Détection de secrets (Gitleaks) ; scan de configuration | HTTPS partout (Caddy gère TLS) ; aucun secret dans le code ; chiffrement des sauvegardes (partie 1, § 3.6) |
 | **A05 Injection** | Requêtes construites par concaténation ; XSS dans l'interface Angular | CodeQL (Java et TypeScript) | Spring Data JPA et requêtes paramétrées ; ne jamais contourner l'échappement d'Angular (`bypassSecurityTrust…`, `innerHTML`) ; validation des entrées côté serveur |
 | **A06 Insecure Design** | Absence de modèle de menaces ; données de contacts personnelles (RGPD) | Non automatisable | Revue de conception sur les nouvelles fonctionnalités ; minimisation des données ; anonymisation hors production |
@@ -47,9 +49,10 @@ Ces constats sont des **hypothèses de travail** à confirmer par les scans ; il
 | Détection de secrets | Gitleaks / secret scanning | oui | oui | oui | | |
 | Qualité et sécurité du code, quality gate | SonarQube Cloud | oui | oui | oui | | |
 | Analyse statique du code (SAST) | CodeQL | | oui | oui | | oui |
-| Vulnérabilités et licences des dépendances | Dependency Review, `npm audit`, OWASP Dependency-Check | | oui | oui | oui | |
+| Vulnérabilités et licences des dépendances | PR : Dependency Review, `npm audit`, OWASP Dependency-Check ; nuit : `npm audit`, OWASP Dependency-Check (Dependency Review n'existe que sur PR) | | oui | oui | oui | |
 | Scan de configuration (`Dockerfile`) | `hadolint`, Trivy config | | oui | oui | | |
 | Scan des images construites | Trivy | | | oui | | oui |
+| Génération et rescan du SBOM | CycloneDX, Trivy / Syft, Grype | | | | | oui (rescan) ; génération à chaque fusion sur `develop` / `main` |
 | Mises à jour de dépendances | Dependabot | | | | | automatique (hebdomadaire) |
 
 Les colonnes reprennent le calendrier de la partie 1. La détection de secrets s'exécute dès le push, car un secret commité est à traiter immédiatement, même sur une branche de travail.
@@ -80,6 +83,22 @@ SonarQube Cloud (service en ligne, ex-SonarCloud) est l'outil central de **contr
 - Les deux outils font de l'analyse statique et se recoupent en partie. Sonar couvre en plus la qualité, la couverture et le suivi des hotspots ; CodeQL détecte certaines failles par analyse de flux de données. On les garde **tous les deux** pour augmenter la couverture, et on traite une alerte commune une seule fois.
 - Sonar ne remplace pas l'analyse des dépendances (Dependency Review, `npm audit`, Trivy) : il n'examine que le code du projet, pas les bibliothèques tierces.
 
+### SBOM (inventaire des composants)
+
+Un **SBOM** (*Software Bill of Materials*) est la liste de tous les composants d'un livrable : bibliothèques, versions, licences, paquets du système. Il répond aux catégories **A03** (chaîne d'approvisionnement) et **A08** (intégrité) : lorsqu'une vulnérabilité est annoncée, il permet de savoir immédiatement si une version livrée est concernée, sans reconstruire ni réanalyser.
+
+| Niveau | Outil | Contenu | Format |
+|--------|-------|---------|--------|
+| Back (Gradle) | Plugin `org.cyclonedx.bom` (`./gradlew cyclonedxBom`) | Dépendances Java | CycloneDX (JSON) |
+| Front (npm) | `npm sbom --sbom-format cyclonedx` ou `@cyclonedx/cyclonedx-npm` | Dépendances Node | CycloneDX (JSON) |
+| **Image Docker** (référence) | Trivy (`trivy image --format cyclonedx`) ou Syft | Dépendances applicatives **et** paquets de l'OS, du JRE et de Caddy | CycloneDX (JSON) |
+
+- **Quand** : à chaque fusion sur `develop` et `main`, sur l'image publiée (même SHA), dans le workflow de publication. Pas à chaque push : l'inventaire n'a de valeur que pour un livrable.
+- **Stockage** : le SBOM est publié comme artefact du workflow et **joint à la release** `vX.Y.Z` ; il est conservé aussi longtemps que l'image correspondante (partie 3, § 3.4).
+- **Exploitation** : le SBOM est rescanné (Trivy ou Grype) lors du contrôle hebdomadaire, ce qui détecte les vulnérabilités **publiées après** le build d'une image déjà livrée. Les mêmes seuils de gravité s'appliquent.
+- **Licences** : il sert aussi de base à la vérification des licences incompatibles avec le projet.
+- **Limites** : un SBOM décrit les composants, il n'indique pas qu'une vulnérabilité est exploitable dans MicroCRM ; la qualification reste manuelle (§ 7). Un SBOM de dépôt (export GitHub, format SPDX) est plus simple mais ne voit pas l'image finale ; il ne remplace pas le SBOM d'image.
+
 ### Seuils de gravité
 
 | Gravité (CVSS) | PR vers `develop` | PR vers `main` | Scans nocturne / hebdomadaire |
@@ -108,8 +127,8 @@ Appliquées à `develop` **et** `main` via les règles de protection de branche 
 |-------|--------|
 | Push direct | Interdit, administrateurs inclus |
 | Pull request obligatoire | Oui |
-| Approbation | Au moins 1 relecteur (second compte), nouvelle approbation si le code change |
-| Vérifications requises | Tests, qualité (quality gate SonarQube Cloud), sécurité et dépendances ; sur `main`, build des images, scan et test de fumée |
+| Approbation | Au moins 1 relecteur (second compte), nouvelle approbation si le code change. *Variante solo : sans second compte, l'approbation n'est pas exigée, mais la PR et les vérifications obligatoires restent requises* |
+| Vérifications requises | Tests, qualité (quality gate SonarQube Cloud), sécurité et dépendances ; build de l'image et test de fumée ; sur `main`, en plus le scan des images |
 | Branche à jour | La branche doit être à jour avec la cible avant fusion |
 | Conversations | Tous les commentaires de revue résolus |
 | Force-push et suppression | Interdits |
