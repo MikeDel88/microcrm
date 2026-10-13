@@ -52,6 +52,12 @@ jobs:
       - run: npm ci
       - name: Tests Front
         run: npm run test:ci
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: front-coverage
+          path: front/coverage
+
   # BUILD
   build:
     runs-on: ubuntu-22.04
