@@ -1,0 +1,11 @@
+# Test (CI) : docker compose -f compose.yml -f compose.test.yml up -d --build
+# Arrêt et nettoyage : docker compose -f compose.yml -f compose.test.yml down -v
+services:
+  back:
+    environment:
+      SPRING_PROFILES_ACTIVE: test
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:8080/organizations || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
