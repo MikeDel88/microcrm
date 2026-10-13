@@ -26,6 +26,10 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+bootJar {
+	archiveFileName = 'microcrm.jar'
+}
+
 test {
     useJUnitPlatform()
     // Les tests utilisent toujours le profil « test », jamais « dev »
