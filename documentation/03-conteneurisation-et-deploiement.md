@@ -28,35 +28,46 @@ Les deux fichiers ont des rôles distincts et complémentaires :
 
 ### 2.1 Le Dockerfile
 
-Le `Dockerfile` du dépôt est multi-stage et définit cinq étapes (deux de compilation, trois cibles d'exécution) :
+Le `Dockerfile` du dépôt est multi-stage et définit quatre étapes (deux de compilation, deux cibles d'exécution) :
 
 | Étape | Rôle |
 |-------|------|
-| `front-build` | Compile l'application Angular (`npm ci`, `ng build`) |
-| `back-build` | Compile l'application Spring Boot (`./gradlew build`) et produit le JAR |
+| `front-build` | Compile l'application Angular (`npm ci`, puis `npm run build`) sur `node:20-alpine` |
+| `back-build` | Compile l'application Spring Boot (`./gradlew bootJar -x test`) et produit le JAR |
 | `front` (cible) | Image d'exécution : Caddy sert les fichiers statiques du front |
 | `back` (cible) | Image d'exécution : JRE qui lance le JAR |
-| `standalone` (cible) | Front et back dans une seule image, pilotés par supervisord |
 
 La CI construit une image par cible avec `docker build --target <cible>`.
 
-### 2.2 Analyse du Dockerfile actuel
+### 2.2 Analyse du Dockerfile
+
+#### Corrections déjà appliquées (détail au chapitre 6)
+
+| Constat initial | Correction |
+|-----------------|-----------|
+| Images `node` et `gradle:jdk17` non épinglées | `node:20-alpine` (compatible Angular 17), `gradle:8.7-jdk17-alpine` (version du wrapper), `caddy:2.11.7-alpine` à la place d'`alpine:3.19` |
+| JDK 17 au build, JRE 21 à l'exécution | `eclipse-temurin:17-jre-alpine` (JRE 17) |
+| `EXPOSE 4200` sur l'image `back` | `EXPOSE 8080` |
+| `RUN ./gradlew build` relançait les tests | `bootJar -x test`, les tests étant validés en amont |
+| Cache Docker inefficace (code copié avant les dépendances) | Front : `package*.json` puis `npm ci` puis le code. Back : fichiers Gradle et `dependencies` avant le code |
+| `npx @angular/cli build` : version de la CLI non figée | `npm run build`, version du `package-lock.json` |
+| Cible `standalone` (supervisord, deux processus) | Supprimée ; front et back tournent dans deux conteneurs via Compose |
+| Aucun `HEALTHCHECK` sur le back | `wget` sur `/organizations` (`curl` absent d'Alpine) |
+| Exécution en root | Utilisateur `app` sur `front` et `back` (l'image officielle Caddy autorise les ports 80/443 en non-root) |
+| Aucun `HEALTHCHECK` sur le front | `nc -z localhost 80` (Caddy redirige HTTP vers HTTPS, un `wget` suivrait la redirection vers un certificat auto-signé) |
+| JAR nommé en dur avec la version (`microcrm-0.0.1-SNAPSHOT.jar`) | `archiveFileName = 'microcrm.jar'` dans `build.gradle`, utilisé par le `Dockerfile` et `supervisor.ini` |
+
+#### Restant à corriger
 
 | Constat | Risque | Amélioration |
 |---------|--------|--------------|
-| Images `node` et `gradle:jdk17` non épinglées | Builds non reproductibles, changement de version silencieux | Épingler la version (`node:20-alpine`, `gradle:8-jdk17`), voire le digest |
-| JDK 17 au build, JRE 21 à l'exécution | Code compilé et exécuté sur deux versions différentes | Aligner les deux sur la même version |
-| Exécution en root | Surface d'attaque en cas de compromission | Créer un utilisateur dédié (`USER`) |
-| Cible `standalone` : deux processus dans un conteneur (supervisord) | Un processus mort n'est pas détecté par Docker, journaux et redémarrages mélangés | Réserver `standalone` au test de fumée et à la démonstration ; déployer front et back séparément |
-| `EXPOSE 4200` sur l'image `back` | Spring Boot écoute sur 8080 par défaut : indication trompeuse | Vérifier le port réel et corriger |
-| Aucun `HEALTHCHECK` | Impossible de savoir si le service répond | Ajouter un healthcheck sur chaque cible |
-| `RUN ./gradlew build` lance aussi les tests | Les tests sont exécutés deux fois (CI puis build d'image) | Utiliser `-x test` dans l'image, les tests étant déjà validés en amont |
-
-À noter : l'URL de l'API est écrite en dur dans le front (`front/src/app/config.ts` : `http://localhost:8080`). Elle est donc figée à la compilation, ce qui est **incompatible avec le principe « une seule image pour tous les environnements »**. Il faut une configuration lue à l'exécution (fichier de configuration servi par Caddy, ou chemin relatif `/api` transmis au back par Caddy en reverse proxy) pour que la même image fonctionne en développement, test, pré-production et production.
+| Images de base épinglées par tag, pas par digest | Le tag peut bouger | Épingler le digest (`@sha256:…`), mis à jour par Dependabot |
+| `JAVA_OPTS` absent | Mémoire du JVM non bornée dans le conteneur | `-XX:MaxRAMPercentage=75` dans la commande de démarrage |
+À noter : l'URL de l'API est écrite en dur dans le front (`front/src/environments/environment.production.ts` : `http://localhost:8080`). Elle est donc figée à la compilation, ce qui est **incompatible avec le principe « une seule image pour tous les environnements »**. Il faut une configuration lue à l'exécution (fichier de configuration servi par Caddy, ou chemin relatif `/api` transmis au back par Caddy en reverse proxy) pour que la même image fonctionne en développement, test, pré-production et production.
 
 ### 2.3 Docker Compose
 
-Le dépôt ne contient aucun fichier Compose aujourd'hui. Il est prévu d'en ajouter un, dont les rôles sont :
+Le dépôt contient `compose.yml` (services `front` et `back`) et les surcharges `compose.dev.yml` et `compose.test.yml`. Les rôles prévus sont :
 
 | Rôle | Détail |
 |------|--------|
@@ -147,7 +158,7 @@ Chaque image publiée est accompagnée de son **SBOM** (inventaire de ses compos
 | Rescan | Hebdomadaire, sur les SBOM des images en pré-production et en production (partie 1, § 3.5) |
 | Condition de déploiement | Un SBOM doit exister pour le SHA à déployer, au même titre que l'image publiée et scannée (§ 6.2) |
 
-- Un SBOM par cible publiée (`front`, `back`), et un pour `standalone` s'il est déployé.
+- Un SBOM par cible publiée (`front`, `back`).
 - La génération n'est pas bloquante pour le build, mais son absence l'est pour la **promotion vers la production**.
 
 ### 3.8 Échec après la fusion
@@ -201,7 +212,7 @@ Chaque environnement a ses propres secrets, définis dans GitHub Environments, d
 | Logs / débogage | Détaillés, endpoints de débogage permis | Détaillés | Niveau production | Niveau production, aucun endpoint de débogage |
 | Secrets | Aucun secret réel (valeurs factices) | GitHub Environments `test` | GitHub Environments `preprod` | GitHub Environments `prod` |
 
-État actuel : un seul `application.properties` (nom de l'application uniquement) et l'URL de l'API écrite en dur dans `config.ts` ; les profils et fichiers ci-dessus sont à créer (phase 2 de la feuille de route).
+État actuel : les profils `dev` et `test` existent (`application-dev.properties`, `application-test.properties`) ainsi que les environnements Angular (`environment.ts`, `environment.test.ts`, `environment.production.ts`). Restent à créer `preprod` et `prod`, et à rendre l'URL de l'API lisible à l'exécution (aujourd'hui fixée à la compilation).
 
 ### 4.4 Stratégie de déploiement et publication des images
 

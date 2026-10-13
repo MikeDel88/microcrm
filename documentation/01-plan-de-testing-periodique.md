@@ -97,8 +97,8 @@ Une fois la PR fusionnée, plus rien ne peut empêcher la fusion : l'image doit 
 
 | Contrôle | PR vers `develop` | PR vers `main` | Détail et objectif |
 |----------|:---:|:---:|--------------------|
-| Build des images | oui | oui | Cibles `front`, `back` et `standalone` du `Dockerfile` : vérifier qu'il produit bien ce qui sera livré |
-| Test de fumée | oui | oui | Démarrer l'image `standalone`, vérifier que la page d'accueil répond et qu'un appel à l'API aboutit (par exemple la liste des organisations) : des tests au vert ne garantissent pas que le conteneur démarre |
+| Build des images | oui | oui | Cibles `front` et `back` du `Dockerfile` : vérifier qu'il produit bien ce qui sera livré |
+| Test de fumée | oui | oui | Démarrer les images `front` et `back` avec `compose.test.yml`, vérifier que la page d'accueil répond et qu'un appel à l'API aboutit (par exemple la liste des organisations) : des tests au vert ne garantissent pas que le conteneur démarre |
 | Scan des images | | oui | Trivy ; seuil de gravité bloquant défini dans le plan de sécurité : détecter les vulnérabilités de l'OS et des images de base, invisibles dans le code |
 
 - Les images de PR sont **jetables** : jamais publiées, supprimées à la fin du job.
@@ -118,14 +118,14 @@ Une fois la PR fusionnée, plus rien ne peut empêcher la fusion : l'image doit 
 - La promotion de `develop` vers `main` se fait **uniquement par pull request**, avec les mêmes exigences : tests au vert, relecture et validation par un relecteur.
 - Le build, le test de fumée (et, pour `main`, le scan) des images s'exécutent **avant** la fusion, sur la PR (§ 3.2 d).
 - Après fusion sur `main`, la CI vérifie que la branche reste livrable. Le déclenchement éventuel du déploiement est traité dans la partie 3.
-- Après fusion : build, test de fumée, scan puis **publication** des images (cibles `front`, `back`, `standalone`), traitées dans la partie 3, § 3.5.
+- Après fusion : build, test de fumée, scan puis **publication** des images (cibles `front` et `back`), traitées dans la partie 3, § 3.5.
 
 ### 3.4 Exécutions nocturnes
 
 - *Condition d'activation : tests e2e écrits et environnements test / pré-production déployés (phase 3, voir feuille de route). Avant cela, la nuit ne lance que la suite complète sans cache et l'audit des dépendances.*
 - Objectif propre : une régression peut apparaître **sans qu'aucun commit n'ait été fait** (dépendance transitive modifiée, image de base mise à jour, test dépendant de l'horloge ou de l'ordre d'exécution).
 - Pour cela, le job nocturne s'exécute **sans cache** Gradle et npm.
-- Il lance les **tests end-to-end** : l'application complète (image `standalone` ou front + back) est démarrée, puis les parcours utilisateurs principaux sont rejoués (outil à choisir, par exemple Cypress ou Playwright ; aucun test e2e n'existe aujourd'hui).
+- Il lance les **tests end-to-end** : l'application complète (front + back, via Docker Compose) est démarrée, puis les parcours utilisateurs principaux sont rejoués (outil à choisir, par exemple Cypress ou Playwright ; aucun test e2e n'existe aujourd'hui).
 - Il s'exécute **sur `develop` et sur `main`**, car ces deux branches peuvent diverger et chacune doit être vérifiée. Une workflow planifiée ne tourne que sur la branche par défaut ; le workflow utilise donc une matrice `ref: [develop, main]` qui récupère explicitement chaque branche.
 - Les e2e visent l'instance déployée : l'environnement **test** pour `develop`, l'environnement de **pré-production** pour `main` (partie 3, § 4). Les e2e ne tournent jamais contre la production.
 - Il lance aussi `npm audit` et OWASP Dependency-Check (ou Trivy en mode système de fichiers) : Dependency Review de GitHub ne fonctionne que sur les PR, il ne peut pas servir la nuit (détails dans le plan de sécurité).
@@ -207,7 +207,7 @@ Pratiques communes :
 | Qualité du code (lint, analyse statique, quality gate) | Obligatoire sur push et PR ; seuils appliqués au code nouveau |
 | Sécurité et dépendances (SAST, audit, licences, secrets) | Obligatoire sur PR ; seuil de gravité bloquant défini dans le plan de sécurité |
 | Images Docker construites (PR vers `develop` et `main`) et saines (scan Trivy, PR vers `main`) | Obligatoire : les trois cibles se construisent ; sur `main`, le scan ne dépasse pas le seuil |
-| Test de fumée du conteneur (PR vers `develop` et `main`) | Obligatoire : l'image `standalone` démarre et répond |
+| Test de fumée du conteneur (PR vers `develop` et `main`) | Obligatoire : les images `front` et `back` démarrent et répondent |
 | Couverture | Outils à ajouter : JaCoCo (back) et `--code-coverage` de Karma (front) |
 | Seuil de couverture | **Phase 1** : mesurer et publier sans bloquer. **Phase 2** : fixer un seuil minimal proche de la valeur mesurée, puis le relever progressivement. Une baisse de couverture sur une PR est signalée |
 | Durée | Alerte si le pipeline dépasse **10 minutes sur push** et **20 minutes sur PR** (la PR cumule tests, qualité, CodeQL et audit des dépendances ; les jobs étant parallèles, la durée est celle du plus lent) |

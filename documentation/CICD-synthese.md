@@ -100,22 +100,21 @@ Les vulnérabilités sans correctif disponible sont consignées dans un fichier 
 | Répond à | *Comment construire une image ?* | *Comment faire tourner l'ensemble ?* |
 | Utilisé par | Le job de build de la CI | Le développement local, le test de fumée en CI |
 
-Le `Dockerfile` est multi-stage (compilation front et back, cibles `front` avec Caddy, `back` avec le JAR, `standalone`). Un `compose.yml` unique, à créer, décrit les services ; l'image est référencée par variable (`IMAGE_TAG`).
+Le `Dockerfile` est multi-stage (compilation front et back, cibles `front` avec Caddy, `back` avec le JAR). Un `compose.yml` unique, à créer, décrit les services ; l'image est référencée par variable (`IMAGE_TAG`).
 
 Quatre environnements, chacun avec sa configuration (profil Spring et variables) : **développement** (poste, profil `dev`), **test** (CI puis `develop`, profil `test`, où tournent tous les tests), **pré-production** (`main`) et **production** (promotion de la même image, après approbation).
 
-### 4.2 Corrections prévues du `Dockerfile`
+### 4.2 Corrections du `Dockerfile`
+
+**Déjà appliquées** : `node:20-alpine`, `gradle:8.7-jdk17-alpine`, `caddy:2.11.7-alpine` et `eclipse-temurin:17-jre-alpine` à la place d'`alpine:3.19`, cible `standalone` supprimée, JRE 17 aligné sur le JDK, `EXPOSE 8080`, `bootJar -x test`, cache des dépendances (front et back), `npm run build`, `HEALTHCHECK` (front et back), JAR à nom fixe (`microcrm.jar`) et utilisateur non-root sur `front` et `back`.
+
+**Restantes** :
 
 | Constat | Correction |
 |---------|-----------|
-| Images `node` et `gradle:jdk17` non épinglées | Épingler les versions (voire le digest) |
-| JDK 17 au build, JRE 21 à l'exécution | Aligner les versions |
-| Exécution en root | Utilisateur dédié (`USER`) |
-| `EXPOSE 4200` sur l'image `back` (Spring écoute en principe sur 8080) | Vérifier et corriger |
-| Aucun `HEALTHCHECK` | En ajouter un par cible |
-| Tests relancés par `./gradlew build` dans l'image | `-x test`, déjà validés en amont |
-| Deux processus dans `standalone` (supervisord) | Réserver cette cible au test de fumée et à la démonstration |
-| URL de l'API en dur dans `front/src/app/config.ts` (`http://localhost:8080`) | Configuration lue à l'exécution (ou chemin relatif avec reverse proxy), sinon l'image ne fonctionne qu'en local |
+| Images de base épinglées par tag seulement | Digest, mis à jour par Dependabot |
+| URL de l'API en dur dans `front/src/environments/environment.production.ts` (`http://localhost:8080`) | Configuration lue à l'exécution (ou chemin relatif avec reverse proxy), sinon l'image ne fonctionne qu'en local |
+
 
 ### 4.3 Publication des images
 

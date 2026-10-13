@@ -41,8 +41,8 @@ Identique au scénario A : `features/*` ou `fix/*` → PR → `develop` → PR �
 
 ### 2.4 Conteneurisation
 
-- Corrections du `Dockerfile` : versions épinglées, JDK aligné, utilisateur non-root, `HEALTHCHECK`, `-x test`.
-- URL de l'API rendue configurable à l'exécution (aujourd'hui `http://localhost:8080` en dur dans `front/src/app/config.ts`), faute de quoi l'image ne fonctionne qu'en local.
+- Corrections du `Dockerfile` : voir chapitre 3, § 2.2 (une partie est déjà appliquée ; restent `front` en non-root et les digests).
+- URL de l'API rendue configurable à l'exécution (aujourd'hui `http://localhost:8080` fixée à la compilation dans `front/src/environments/environment.production.ts`), faute de quoi l'image ne fonctionne qu'en local.
 - Un `compose.yml` unique, servant au **développement local** et au **test de fumée en CI**.
 
 ### 2.4 bis Environnements
@@ -133,7 +133,7 @@ Objectif : exécuter tous les tests dans un environnement reproductible, jetable
 | Secrets | Aucun réel | Aucun nécessaire |
 
 - L'**image est la même** dans les deux environnements ; seules la configuration (variables `SPRING_PROFILES_ACTIVE`, URL de l'API) et le fichier de surcharge Compose changent.
-- Prérequis du `Dockerfile` : URL de l'API lue à l'exécution (aujourd'hui figée dans `config.ts`), sans quoi l'image ne fonctionne qu'en local.
+- Prérequis du `Dockerfile` : URL de l'API lue à l'exécution (aujourd'hui figée à la compilation dans `environment.production.ts`), sans quoi l'image ne fonctionne qu'en local.
 - Quand un hébergement existera, les profils `preprod` et `prod` s'ajouteront selon le même modèle (chapitre 3, § 4.3).
 
 ### 5.5 Validation

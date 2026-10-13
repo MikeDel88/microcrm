@@ -15,7 +15,7 @@ Définir **quand**, **comment** et **dans quel objectif** les tests, les contrô
   - `back/` : Spring Boot 3, Java 17, Gradle
   - `front/` : Angular 17, Karma/Jasmine
 - Plateforme CI/CD : GitHub Actions
-- Livrables conteneurisés : `Dockerfile` multi-stage (cibles `front`, `back`, `standalone`)
+- Livrables conteneurisés : `Dockerfile` multi-stage (cibles `front` et `back`)
 
 ## Deux scénarios
 
@@ -35,6 +35,7 @@ Le scénario B est un **sous-ensemble** du scénario A : tout ce qu'il met en pl
 3. Principes de conteneurisation et de déploiement (scénario A)
 4. Feuille de route : mise en place du pipeline idéal (scénario A)
 5. Scénario adapté au contexte actuel du projet (scénario B)
+6. Images Docker, Caddy et HEALTHCHECK (complément du chapitre 3)
 
 ## Glossaire
 
