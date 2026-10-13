@@ -107,8 +107,8 @@ La mise en place suit l'ordre ci-dessous. Les étapes 2 et 3 créent les environ
 
 Objectif : travailler sur une feature ou un fix avec une configuration propre, sans toucher à celle des tests.
 
-1. **Back** : créer `back/src/main/resources/application-dev.properties` (HSQLDB en mémoire avec données de démonstration, logs détaillés, CORS limité à `http://localhost:4200`). Activer le profil avec `SPRING_PROFILES_ACTIVE=dev` (ou `./gradlew bootRun --args='--spring.profiles.active=dev'`).
-2. **Front** : conserver `API_BASE_URL = "http://localhost:8080"` pour `ng serve`. Dans le scénario B, cette valeur ne sert **qu'au développement** : pour l'image, elle devient configurable (§ 5.4).
+1. **Back** : créer `back/src/main/resources/application-dev.properties` (HSQLDB en mémoire avec les données de démonstration de `InitialDataFixture`, SQL et logs détaillés). Activer le profil avec `SPRING_PROFILES_ACTIVE=dev` (ou `./gradlew bootRun --args='--spring.profiles.active=dev'`).
+2. **Front** : `front/src/environments/environment.ts` (par défaut pour `ng serve`) définit `apiBaseUrl` ; `src/app/config.ts` expose `API_BASE_URL` à partir de cet environnement. Dans le scénario B, cette valeur ne sert **qu'au développement** : pour l'image, elle devient configurable (§ 5.4).
 3. **Lancement** : soit `./gradlew bootRun` et `ng serve` séparément, soit `docker compose -f compose.yml -f compose.dev.yml up`.
 4. **Règles** : aucun secret réel (valeurs factices uniquement) ; le travail se fait sur `features/*` ou `fix/*` ; les tests lancés ici servent au retour rapide et ne valident rien (la validation se fait dans l'environnement de test).
 
@@ -116,8 +116,8 @@ Objectif : travailler sur une feature ou un fix avec une configuration propre, s
 
 Objectif : exécuter tous les tests dans un environnement reproductible, jetable et indépendant du poste.
 
-1. **Back** : créer `back/src/test/resources/application-test.properties` (HSQLDB en mémoire recréée à chaque exécution, jeu de données fixe, logs réduits). Les tests JUnit sont lancés avec `SPRING_PROFILES_ACTIVE=test` dans `ci.yml`.
-2. **Front** : Karma en mode headless (`ChromeHeadless`), sans dépendance au back réel ; l'URL de l'API est fournie par la configuration de test.
+1. **Back** : créer `back/src/test/resources/application-test.properties` (HSQLDB en mémoire recréée à chaque exécution, jeu de données fixe, logs réduits). `build.gradle` impose `SPRING_PROFILES_ACTIVE=test` à la tâche `test`, en local comme en CI.
+2. **Front** : `front/src/environments/environment.test.ts`, substitué par la configuration Angular `test` (`fileReplacements`) ; Karma en mode headless via `npm run test:ci` (`--configuration=test`, `ChromeHeadlessNoSandbox`, avec couverture), sans dépendance au back réel.
 3. **Instance de test** : pour le test de fumée, `ci.yml` démarre l'image avec `docker compose -f compose.yml -f compose.test.yml up -d`, attend les healthchecks, vérifie `GET /organizations` et la page d'accueil (voir `exemples/ci.yml`), puis détruit les conteneurs (`down -v`). Rien ne persiste après l'exécution.
 4. **Règles** : les tests ne s'exécutent jamais avec le profil `dev` ; l'environnement est recréé à chaque exécution (PR, push sur `develop`/`main`, nuit) ; pas de secret nécessaire, la base étant en mémoire.
 
@@ -129,7 +129,7 @@ Objectif : exécuter tous les tests dans un environnement reproductible, jetable
 | Où | Poste du développeur | Runner GitHub Actions |
 | Déclenchement | Manuel | PR, push sur `develop`/`main`, nuit |
 | Base | HSQLDB en mémoire, données de démonstration | HSQLDB en mémoire, jeu de données fixe |
-| Compose | `compose.yml` + `compose.dev.yml` | `compose.yml` + `compose.test.yml` |
+| Compose | `compose.yml` + `compose.dev.yml` (déjà créés à la racine) | `compose.yml` + `compose.test.yml` |
 | Secrets | Aucun réel | Aucun nécessaire |
 
 - L'**image est la même** dans les deux environnements ; seules la configuration (variables `SPRING_PROFILES_ACTIVE`, URL de l'API) et le fichier de surcharge Compose changent.
