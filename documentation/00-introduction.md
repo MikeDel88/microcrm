@@ -23,7 +23,7 @@ Le document distingue deux scénarios, pour ne pas confondre ce qui est visé et
 
 | Scénario | Description | Chapitres |
 |----------|-------------|-----------|
-| **A. Pipeline idéal** | Architecture cible complète : trois environnements, tests e2e nocturnes, sauvegarde et restauration, retour arrière, production avec approbation | 1 à 4 |
+| **A. Pipeline idéal** | Architecture cible complète : quatre environnements (développement, test, pré-production, production), tests e2e nocturnes, sauvegarde et restauration, retour arrière, production avec approbation | 1 à 4 |
 | **B. Contexte actuel du projet** | Version adaptée à l'état réel de MicroCRM : application de démonstration, base en mémoire, sans authentification, sans hébergement ni tests e2e | 5 |
 
 Le scénario B est un **sous-ensemble** du scénario A : tout ce qu'il met en place est conforme au scénario A, et ce qu'il omet est repris par phases (chapitre 4, « Phasage »).

@@ -36,6 +36,15 @@ Constat : la couverture actuelle est faible côté back (deux classes de test). 
 | Toutes les nuits | `schedule` : `0 2 * * *` (02:00 UTC), sur `develop` **et** `main` | Suite complète depuis un cache vierge, **tests end-to-end**, audit des dépendances | Détecter une régression introduite par une dépendance externe ou un test instable ; en cas d'échec : notification et création d'une issue |
 | Toutes les semaines | `schedule` : `0 3 * * 0` (dimanche, 03:00 UTC) | Rebuild des images sans cache, scan de vulnérabilités, **sauvegarde et test de restauration de la base de données**, revue des tests instables | Contrôle en profondeur et mise à jour des images de base |
 
+### 3.1 bis Tests par environnement
+
+| Environnement | Configuration | Tests concernés |
+|---------------|---------------|-----------------|
+| Développement (poste) | Profil `dev` | Lancement manuel des tests unitaires pendant le travail sur une feature ou un fix ; aucun résultat n'est considéré comme une validation |
+| Test (CI, puis instance `develop`) | Profil `test`, base jetable | Tous les tests automatisés : unitaires, intégration, test de fumée, e2e nocturnes sur `develop` ; jamais exécutés avec la configuration `dev` |
+| Pré-production | Profil `preprod` | E2e nocturnes sur `main`, sauvegarde et test de restauration |
+| Production | Profil `prod` | Aucun test automatisé (test de fumée de déploiement uniquement) |
+
 ### 3.2 Modèle de branches, push et pull request
 
 Les modifications suivent ce flux :
@@ -113,12 +122,12 @@ Une fois la PR fusionnée, plus rien ne peut empêcher la fusion : l'image doit 
 
 ### 3.4 Exécutions nocturnes
 
-- *Condition d'activation : tests e2e écrits et environnements dev / pré-production déployés (phase 3, voir feuille de route). Avant cela, la nuit ne lance que la suite complète sans cache et l'audit des dépendances.*
+- *Condition d'activation : tests e2e écrits et environnements test / pré-production déployés (phase 3, voir feuille de route). Avant cela, la nuit ne lance que la suite complète sans cache et l'audit des dépendances.*
 - Objectif propre : une régression peut apparaître **sans qu'aucun commit n'ait été fait** (dépendance transitive modifiée, image de base mise à jour, test dépendant de l'horloge ou de l'ordre d'exécution).
 - Pour cela, le job nocturne s'exécute **sans cache** Gradle et npm.
 - Il lance les **tests end-to-end** : l'application complète (image `standalone` ou front + back) est démarrée, puis les parcours utilisateurs principaux sont rejoués (outil à choisir, par exemple Cypress ou Playwright ; aucun test e2e n'existe aujourd'hui).
 - Il s'exécute **sur `develop` et sur `main`**, car ces deux branches peuvent diverger et chacune doit être vérifiée. Une workflow planifiée ne tourne que sur la branche par défaut ; le workflow utilise donc une matrice `ref: [develop, main]` qui récupère explicitement chaque branche.
-- Les e2e visent l'instance déployée : l'environnement **dev** pour `develop`, l'environnement de **pré-production** pour `main` (partie 3, § 4). Les e2e ne tournent jamais contre la production.
+- Les e2e visent l'instance déployée : l'environnement **test** pour `develop`, l'environnement de **pré-production** pour `main` (partie 3, § 4). Les e2e ne tournent jamais contre la production.
 - Il lance aussi `npm audit` et OWASP Dependency-Check (ou Trivy en mode système de fichiers) : Dependency Review de GitHub ne fonctionne que sur les PR, il ne peut pas servir la nuit (détails dans le plan de sécurité).
 - **En cas d'erreur** : notification de l'équipe et **création automatique d'une issue** (§ 6). Si une issue ouverte existe déjà pour la même branche, un commentaire y est ajouté au lieu d'en créer une nouvelle, afin d'éviter une issue par nuit.
 
@@ -185,7 +194,7 @@ Pratiques communes :
 
 - **Cache** : `actions/setup-java` (Gradle) et `actions/setup-node` (npm) avec cache activé, sauf pour les exécutions planifiées.
 - **Versions figées** : JDK 17 et version de Node alignées sur celles du `Dockerfile` pour que la CI et l'image se comportent de la même façon.
-- **Chrome sans interface** : Karma doit être lancé avec `ChromeHeadless`. Sur un runner GitHub, un lanceur personnalisé avec l'option `--no-sandbox` sera nécessaire dans `karma.conf.js`.
+- **Chrome sans interface** : Karma est lancé avec le lanceur `ChromeHeadlessNoSandbox`, déjà défini dans `front/karma.conf.js` (l'option `--no-sandbox` est nécessaire sur un runner GitHub).
 - **Déclenchement manuel** : `workflow_dispatch` ajouté à chaque workflow pour relancer à la demande.
 - **Permissions minimales** : `permissions: contents: read` par défaut.
 
@@ -224,7 +233,7 @@ Les chiffres exacts de seuil seront fixés après la première mesure : en chois
 
 - Base de données : rester sur HSQLDB en mode fichier avec volume, ou passer à une base externe (PostgreSQL) ? Sans persistance, la sauvegarde hebdomadaire n'a pas de sens (§ 3.6).
 - Où stocker les sauvegardes et pendant combien de temps.
-- Environnements : **décision prise**, trois environnements (dev depuis `develop`, pré-production depuis `main`, production après approbation manuelle). Reste à définir l'hébergement (partie 3, § 4).
+- Environnements : **décision prise**, quatre environnements (développement sur le poste, test depuis `develop`, pré-production depuis `main`, production après approbation manuelle). Reste à définir l'hébergement (partie 3, § 4).
 - Nombre de relecteurs requis sur une PR vers `develop` et vers `main` (un seul par défaut).
 - Revue : **décision prise**, un second compte relecteur approuve les PR (un développeur ne peut pas approuver sa propre PR), y compris vers `main`.
 - Possibles contrôles supplémentaires pour `main`, non retenus à ce stade : tests end-to-end, seuils de gravité plus stricts, restriction de la branche source à `develop`.

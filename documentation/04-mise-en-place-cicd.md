@@ -13,8 +13,8 @@ Ce chapitre résume **dans quel ordre** mettre en place ce que décrivent les pa
 | 4 | Sécurité sur PR | SAST, dépendances, secrets, seuils de gravité | P2 § 3-4 |
 | 5 | Conteneurisation | `Dockerfile` corrigé, `compose.yml`, configuration à l'exécution | P3 § 1-2 |
 | 6 | Images et publication | Build et test de fumée sur PR `develop` et `main` (scan sur `main`) ; après fusion : build, test, scan, puis publication GHCR | P3 § 3 |
-| 7 | Déploiement `deploy.yml` | Dev et pré-prod automatiques, prod après approbation, retour arrière | P3 § 4-5 |
-| 8 | Exécution nocturne `nightly.yml` | Tests e2e sur dev et pré-prod, issue en cas d'échec | P1 § 3.4 |
+| 7 | Déploiement `deploy.yml` | Test et pré-prod automatiques, prod après approbation, retour arrière | P3 § 4-5 |
+| 8 | Exécution nocturne `nightly.yml` | Tests e2e sur test et pré-prod, issue en cas d'échec | P1 § 3.4 |
 | 9 | Exécution hebdomadaire `weekly.yml` | Rebuild, scan, sauvegarde et test de restauration | P1 § 3.5-3.6 |
 | 10 | Validation finale | Parcours complet vérifié, PDF généré | – |
 
@@ -33,7 +33,7 @@ Ce chapitre résume **dans quel ordre** mettre en place ce que décrivent les pa
 ## Étape 1 : dépôt GitHub
 
 - Créer la branche `develop` à partir de `main`.
-- Créer les environnements GitHub `dev`, `preprod` et `prod`, avec leurs secrets séparés ; approbation requise pour `prod`.
+- Créer les environnements GitHub `test`, `preprod` et `prod`, avec leurs secrets séparés ; approbation requise pour `prod`.
 - Ajouter un fichier `CODEOWNERS` couvrant `.github/workflows/`, le `Dockerfile` et les fichiers Compose.
 - Disposer d'un second compte relecteur.
 - **Ne pas encore activer** les règles de protection : elles exigent des vérifications qui n'existent pas avant l'étape 3.
@@ -63,6 +63,7 @@ Ce chapitre résume **dans quel ordre** mettre en place ce que décrivent les pa
 - `Dockerfile` : images épinglées, JDK aligné, utilisateur non-root, `HEALTHCHECK`, `-x test`.
 - Rendre l'URL de l'API configurable à l'exécution (aujourd'hui en dur : `localhost:8080`), condition pour réutiliser la même image dans tous les environnements.
 - `compose.yml` commun et surcharges par environnement ; volume pour la base.
+- Créer les profils Spring `dev`, `test`, `preprod`, `prod` (`application-<profil>.properties`) : `dev` pour le travail sur une feature ou un fix, `test` pour l'exécution des tests (la CI active `test`, jamais `dev`).
 - **Avant l'étape 6**, car la publication a besoin d'images correctes.
 
 ## Étape 6 : images et publication
@@ -73,13 +74,13 @@ Ce chapitre résume **dans quel ordre** mettre en place ce que décrivent les pa
 ## Étape 7 : déploiement
 
 - `deploy.yml` : connexion à la machine cible, `docker compose pull` puis `up -d` avec le tag voulu.
-- Dev automatique (`develop`), pré-production automatique (`main`), production manuelle avec approbation, **même SHA que la pré-production**.
+- Test automatique (`develop`), pré-production automatique (`main`), production manuelle avec approbation, **même SHA que la pré-production**.
 - Healthcheck, test de fumée, retour arrière automatique en cas d'échec.
 
 ## Étape 8 : exécution nocturne
 
 - `nightly.yml` à 02:00 UTC, matrice `develop` et `main`, sans cache.
-- Tests e2e sur dev et pré-production, audit des dépendances.
+- Tests e2e sur test et pré-production, audit des dépendances.
 - Échec : notification et création d'une issue, avec commentaire plutôt que doublon.
 - **Prérequis** : environnements déployés (étape 7) et tests e2e écrits.
 
@@ -91,7 +92,7 @@ Ce chapitre résume **dans quel ordre** mettre en place ce que décrivent les pa
 
 ## Étape 10 : validation finale
 
-Dérouler le parcours complet : branche `features/test` → PR → `develop` (déploiement dev) → PR → `main` (déploiement pré-prod) → approbation → production. Provoquer ensuite un échec volontaire pour vérifier le retour arrière et l'issue nocturne. Générer enfin le PDF à partir des fichiers Markdown.
+Dérouler le parcours complet : branche `features/test` → PR → `develop` (déploiement test) → PR → `main` (déploiement pré-prod) → approbation → production. Provoquer ensuite un échec volontaire pour vérifier le retour arrière et l'issue nocturne. Générer enfin le PDF à partir des fichiers Markdown.
 
 ## Dépendances à respecter
 
@@ -107,13 +108,13 @@ MicroCRM est une application de démonstration : base en mémoire, aucune authen
 | Phase | Contenu | Étapes | Prérequis |
 |-------|---------|--------|-----------|
 | **1. Socle** | `ci.yml`, protection des branches, SonarQube Cloud, CodeQL, détection de secrets, Dependabot, correctifs du `Dockerfile`, publication GHCR | 1 à 4, 5 (Dockerfile), 6 (publication) | Dépôt GitHub uniquement |
-| **2. Déploiement** | `compose.yml`, URL de l'API configurable, un premier environnement, test de fumée, pré-production, déploiement automatique | 5 (Compose), 7 (dev, pré-prod) | Hébergement défini |
+| **2. Déploiement** | `compose.yml`, URL de l'API configurable, un premier environnement, test de fumée, pré-production, déploiement automatique | 5 (Compose), 7 (test, pré-prod) | Hébergement défini |
 | **3. Conditionnel** | Tests e2e nocturnes, sauvegarde et test de restauration, `rollback.yml`, production avec approbation | 7 (prod), 8, 9 | Base persistante, tests e2e écrits, environnements déployés |
 
 Ce qui est **volontairement lourd pour une démonstration** et peut être allégé sans remettre en cause le plan :
 
 - plusieurs outils d'analyse qui se recoupent (SonarQube Cloud, CodeQL, OWASP Dependency-Check, Trivy) : en démarrer deux ou trois, ajouter les autres si le bruit reste acceptable ;
-- trois environnements : dev et pré-production peuvent être fusionnés au départ ;
+- quatre environnements (dev local, test, pré-production, production) : test et pré-production peuvent être fusionnés au départ ;
 - signature des images (cosign) : non retenue en phase 1.
 
 ### Hypothèses à vérifier

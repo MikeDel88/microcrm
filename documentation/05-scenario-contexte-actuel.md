@@ -45,6 +45,12 @@ Identique au scénario A : `features/*` ou `fix/*` → PR → `develop` → PR �
 - URL de l'API rendue configurable à l'exécution (aujourd'hui `http://localhost:8080` en dur dans `front/src/app/config.ts`), faute de quoi l'image ne fonctionne qu'en local.
 - Un `compose.yml` unique, servant au **développement local** et au **test de fumée en CI**.
 
+### 2.4 bis Environnements
+
+- **Développement** (poste local) : profil `dev`, utilisé pour une feature ou un correctif.
+- **Test** (runner GitHub Actions) : profil `test`, utilisé par la CI pour tous les tests ; jamais la configuration de dev.
+- Pré-production et production : non mis en place (pas d'hébergement).
+
 ### 2.5 « Déploiement »
 
 Sans hébergement, le déploiement se limite à la **publication des images** dans GHCR. Une personne peut lancer l'application avec `docker compose` en indiquant le tag voulu. La mise en ligne sur un serveur est reportée.
@@ -57,7 +63,7 @@ Revenir à une version précédente consiste à relancer `docker compose` avec l
 
 | Élément du scénario A | Raison de l'omission | Condition de reprise |
 |-----------------------|----------------------|----------------------|
-| Environnements dev, pré-production, production | Pas d'hébergement | Hébergement défini |
+| Environnements test déployé, pré-production, production | Pas d'hébergement | Hébergement défini |
 | `deploy.yml` et `rollback.yml` | Rien à déployer | Environnement disponible |
 | Tests e2e nocturnes | Aucun test e2e | Outil choisi et tests écrits |
 | Sauvegarde et test de restauration | Base en mémoire | Base persistante |
@@ -69,9 +75,9 @@ Revenir à une version précédente consiste à relancer `docker compose` avec l
 
 | Sujet | A. Pipeline idéal | B. Contexte actuel |
 |-------|-------------------|--------------------|
-| Environnements | dev, pré-production, production | Aucun (exécution locale ou dans le runner) |
-| Déploiement | Automatique (dev, pré-prod), manuel avec approbation (prod) | Publication des images dans GHCR |
-| Tests e2e | Chaque nuit sur dev et pré-production | Absents |
+| Environnements | développement (local), test, pré-production, production | Développement (local, profil `dev`) et test (runner CI, profil `test`) ; aucun environnement déployé |
+| Déploiement | Automatique (test, pré-prod), manuel avec approbation (prod) | Publication des images dans GHCR |
+| Tests e2e | Chaque nuit sur test et pré-production | Absents |
 | Sauvegarde / restauration | Hebdomadaire | Non applicable |
 | Retour arrière | Automatique et workflow manuel | Relance avec le tag précédent |
 | Relecture | Second relecteur obligatoire | PR obligatoire, approbation non exigée |
@@ -80,14 +86,62 @@ Revenir à une version précédente consiste à relancer `docker compose` avec l
 
 ## 5. Mise en place du scénario B
 
-1. Créer `develop` ; configurer la protection de `develop` et `main` (voir hypothèses ci-dessous).
-2. Préparer le code : Karma headless, JaCoCo, ESLint, configuration SonarQube Cloud.
-3. Écrire `ci.yml` (push, PR) puis activer la protection de branches.
-4. Ajouter CodeQL, Dependency Review, détection de secrets, Dependabot.
-5. Corriger le `Dockerfile`, rendre l'URL de l'API configurable, écrire `compose.yml`.
-6. Ajouter le build et le test de fumée sur PR vers `develop` et `main` (scan sur `main`), puis `publish.yml` : build, test de fumée, scan, puis push GHCR et tags.
-7. Écrire `nightly.yml` (suite complète, audit, issue) et `weekly.yml` (rebuild, scan).
-8. Valider : branche `features/test` → PR → `develop` → PR → `main`, puis vérifier les images et leurs tags.
+### 5.1 Vue d'ensemble
+
+La mise en place suit l'ordre ci-dessous. Les étapes 2 et 3 créent les environnements **développement** et **test** ; les autres s'appuient sur eux.
+
+| # | Étape | Résultat |
+|---|-------|----------|
+| 1 | Créer `develop`, protéger `develop` et `main` | Modèle de branches en place (voir hypothèses, § 6) |
+| 2 | **Environnement de développement** (§ 5.2) | Profil `dev`, lancement local documenté |
+| 3 | **Environnement de test** (§ 5.3) | Profil `test`, utilisé par la CI |
+| 4 | Préparer le code : Karma headless, JaCoCo, ESLint, SonarQube Cloud | Mesures de qualité disponibles |
+| 5 | Écrire `ci.yml` (push, PR) puis activer la protection de branches | Tests exécutés dans l'environnement de test |
+| 6 | Ajouter CodeQL, Dependency Review, détection de secrets, Dependabot | Contrôles de sécurité |
+| 7 | Corriger le `Dockerfile`, écrire `compose.yml` (§ 5.4) | Image fonctionnelle dans les deux environnements |
+| 8 | Build et test de fumée sur PR (scan sur `main`), puis `publish.yml` : build, test de fumée, scan, push GHCR et tags | Images publiées |
+| 9 | Écrire `nightly.yml` (suite complète, audit, issue) et `weekly.yml` (rebuild, scan) | Contrôles périodiques |
+| 10 | Valider (§ 5.5) | Parcours complet vérifié |
+
+### 5.2 Environnement de développement (poste local)
+
+Objectif : travailler sur une feature ou un fix avec une configuration propre, sans toucher à celle des tests.
+
+1. **Back** : créer `back/src/main/resources/application-dev.properties` (HSQLDB en mémoire avec données de démonstration, logs détaillés, CORS limité à `http://localhost:4200`). Activer le profil avec `SPRING_PROFILES_ACTIVE=dev` (ou `./gradlew bootRun --args='--spring.profiles.active=dev'`).
+2. **Front** : conserver `API_BASE_URL = "http://localhost:8080"` pour `ng serve`. Dans le scénario B, cette valeur ne sert **qu'au développement** : pour l'image, elle devient configurable (§ 5.4).
+3. **Lancement** : soit `./gradlew bootRun` et `ng serve` séparément, soit `docker compose -f compose.yml -f compose.dev.yml up`.
+4. **Règles** : aucun secret réel (valeurs factices uniquement) ; le travail se fait sur `features/*` ou `fix/*` ; les tests lancés ici servent au retour rapide et ne valident rien (la validation se fait dans l'environnement de test).
+
+### 5.3 Environnement de test (runner GitHub Actions)
+
+Objectif : exécuter tous les tests dans un environnement reproductible, jetable et indépendant du poste.
+
+1. **Back** : créer `back/src/test/resources/application-test.properties` (HSQLDB en mémoire recréée à chaque exécution, jeu de données fixe, logs réduits). Les tests JUnit sont lancés avec `SPRING_PROFILES_ACTIVE=test` dans `ci.yml`.
+2. **Front** : Karma en mode headless (`ChromeHeadless`), sans dépendance au back réel ; l'URL de l'API est fournie par la configuration de test.
+3. **Instance de test** : pour le test de fumée, `ci.yml` démarre l'image avec `docker compose -f compose.yml -f compose.test.yml up -d`, attend les healthchecks, vérifie `GET /organizations` et la page d'accueil (voir `exemples/ci.yml`), puis détruit les conteneurs (`down -v`). Rien ne persiste après l'exécution.
+4. **Règles** : les tests ne s'exécutent jamais avec le profil `dev` ; l'environnement est recréé à chaque exécution (PR, push sur `develop`/`main`, nuit) ; pas de secret nécessaire, la base étant en mémoire.
+
+### 5.4 Configuration commune
+
+| Élément | Développement | Test |
+|---------|---------------|------|
+| Profil Spring | `dev` | `test` |
+| Où | Poste du développeur | Runner GitHub Actions |
+| Déclenchement | Manuel | PR, push sur `develop`/`main`, nuit |
+| Base | HSQLDB en mémoire, données de démonstration | HSQLDB en mémoire, jeu de données fixe |
+| Compose | `compose.yml` + `compose.dev.yml` | `compose.yml` + `compose.test.yml` |
+| Secrets | Aucun réel | Aucun nécessaire |
+
+- L'**image est la même** dans les deux environnements ; seules la configuration (variables `SPRING_PROFILES_ACTIVE`, URL de l'API) et le fichier de surcharge Compose changent.
+- Prérequis du `Dockerfile` : URL de l'API lue à l'exécution (aujourd'hui figée dans `config.ts`), sans quoi l'image ne fonctionne qu'en local.
+- Quand un hébergement existera, les profils `preprod` et `prod` s'ajouteront selon le même modèle (chapitre 3, § 4.3).
+
+### 5.5 Validation
+
+1. Lancer l'application en développement (§ 5.2) et vérifier que le front joint le back.
+2. Ouvrir une branche `features/test` → PR vers `develop` : vérifier dans les journaux que les tests tournent avec le profil `test` et que le test de fumée démarre puis détruit l'instance.
+3. Fusionner sur `develop`, puis PR vers `main`, et vérifier les images publiées et leurs tags.
+4. Casser volontairement un test : la PR doit être bloquée.
 
 ## 6. Hypothèses à confirmer
 

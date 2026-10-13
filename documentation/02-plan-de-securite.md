@@ -114,7 +114,7 @@ Un **SBOM** (*Software Bill of Materials*) est la liste de tous les composants d
 ## 5. Gestion des secrets
 
 - Aucun secret dans le dépôt : ni mot de passe, ni jeton, ni clé, y compris dans l'historique Git.
-- Les secrets de la CI/CD sont stockés dans **GitHub Secrets**, rattachés à un **environnement** (dev, pré-production, production) : un secret de production n'est jamais lisible par un workflow de dev ou de pré-production (partie 3, § 4).
+- Les secrets de la CI/CD sont stockés dans **GitHub Secrets**, rattachés à un **environnement** (test, pré-production, production ; le développement local n'utilise aucun secret réel) : un secret de production n'est jamais lisible par un workflow de test ou de pré-production (partie 3, § 4).
 - Permissions minimales pour les workflows : `permissions: contents: read` par défaut, élargi workflow par workflow (par exemple `issues: write` pour les issues nocturnes).
 - Les PR provenant de forks n'ont pas accès aux secrets.
 - En cas de fuite : le secret est **révoqué et remplacé immédiatement** ; le supprimer de l'historique ne suffit pas.

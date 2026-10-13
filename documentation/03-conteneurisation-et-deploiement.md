@@ -52,7 +52,7 @@ La CI construit une image par cible avec `docker build --target <cible>`.
 | Aucun `HEALTHCHECK` | Impossible de savoir si le service répond | Ajouter un healthcheck sur chaque cible |
 | `RUN ./gradlew build` lance aussi les tests | Les tests sont exécutés deux fois (CI puis build d'image) | Utiliser `-x test` dans l'image, les tests étant déjà validés en amont |
 
-À noter : l'URL de l'API est écrite en dur dans le front (`front/src/app/config.ts` : `http://localhost:8080`). Elle est donc figée à la compilation, ce qui est **incompatible avec le principe « une seule image pour tous les environnements »**. Il faut une configuration lue à l'exécution (fichier de configuration servi par Caddy, ou chemin relatif `/api` transmis au back par Caddy en reverse proxy) pour que la même image fonctionne en dev, pré-production et production.
+À noter : l'URL de l'API est écrite en dur dans le front (`front/src/app/config.ts` : `http://localhost:8080`). Elle est donc figée à la compilation, ce qui est **incompatible avec le principe « une seule image pour tous les environnements »**. Il faut une configuration lue à l'exécution (fichier de configuration servi par Caddy, ou chemin relatif `/api` transmis au back par Caddy en reverse proxy) pour que la même image fonctionne en développement, test, pré-production et production.
 
 ### 2.3 Docker Compose
 
@@ -70,7 +70,7 @@ Organisation proposée :
 | Fichier | Contenu |
 |---------|---------|
 | `compose.yml` | Définition commune : services, réseau, volumes, healthchecks. L'image est référencée par variable (`image: ghcr.io/…/microcrm-back:${IMAGE_TAG}`) |
-| `compose.dev.yml` / `compose.preprod.yml` / `compose.prod.yml` | Spécificités de l'environnement (ports, nombre de réplicas, limites de ressources) |
+| `compose.dev.yml` / `compose.test.yml` / `compose.preprod.yml` / `compose.prod.yml` | Spécificités de l'environnement (ports, nombre de réplicas, limites de ressources) |
 | `.env.<environnement>` | Variables non secrètes (tag d'image, URLs). **Les secrets ne sont jamais dans ces fichiers** : ils viennent de GitHub Environments |
 
 - Le tag d'image est fourni au déploiement (`IMAGE_TAG=sha-3f2a9c1`) : changer de version ou revenir en arrière revient à changer cette valeur.
@@ -162,11 +162,14 @@ Si le workflow de publication échoue après la fusion, le code est déjà inté
 
 ## 4. Environnements et stratégie de déploiement
 
-### 4.1 Les trois environnements
+### 4.1 Les quatre environnements
+
+Deux environnements servent à **construire et vérifier** (développement, test), deux à **livrer** (pré-production, production). Chacun a sa propre configuration (§ 4.3).
 
 | Environnement | Branche source | Déclencheur | Rôle |
 |---------------|----------------|-------------|------|
-| **Dev** | `develop` | Déploiement automatique après chaque fusion de PR sur `develop` | Intégration continue sur une vraie instance ; cible des tests e2e nocturnes sur `develop` |
+| **Développement** (dev) | `features/*`, `fix/*` | Manuel, sur le poste du développeur (`docker compose` avec `compose.dev.yml`, ou `ng serve` + `gradlew bootRun`) | Développer et déboguer une feature ou un correctif ; base en mémoire ou données de démonstration, logs détaillés, aucun secret réel |
+| **Test** | PR, puis `develop` | Runner GitHub Actions (conteneurs jetables) sur chaque PR ; déploiement automatique après chaque fusion de PR sur `develop` | Exécuter les tests (unitaires, intégration, test de fumée, e2e) avec une configuration dédiée, jamais celle de dev ; cible des tests e2e nocturnes sur `develop` |
 | **Pré-production** (staging) | `main` | Déploiement automatique après chaque fusion de PR sur `main` | Réplique de la production : dernière validation avant mise en ligne ; cible des tests e2e nocturnes sur `main` et du test de sauvegarde / restauration hebdomadaire |
 | **Production** | `main` (même image que la pré-prod) | Déploiement **manuel**, après approbation | Environnement des utilisateurs |
 
@@ -174,7 +177,7 @@ Si le workflow de publication échoue après la fusion, le code est déjà inté
 
 - L'image Docker est **construite une seule fois**, à la fusion sur `main`, puis **promue** telle quelle de la pré-production vers la production : on ne reconstruit pas. Ce qui a été testé en pré-prod est exactement ce qui part en prod.
 - Le passage en production exige une approbation (GitHub Environments avec relecteurs requis), donnée après vérification en pré-production.
-- Le flux complet est : `features/*` ou `fix/*` → PR → `develop` (déployé en dev) → PR → `main` (déployé en pré-prod) → approbation → production.
+- Le flux complet est : `features/*` ou `fix/*` (développées en **dev**) → PR (tests en CI avec la configuration **test**) → `develop` (déployé en **test**) → PR → `main` (déployé en pré-prod) → approbation → production.
 
 ### 4.3 Ce que « ressembler à la production » signifie
 
@@ -185,7 +188,20 @@ La pré-production doit différer de la production le moins possible, afin que l
 - même type de base de données, avec des données anonymisées ou de démonstration, **jamais des données réelles non anonymisées** ;
 - mêmes règles réseau et mêmes protections (HTTPS, en-têtes).
 
-Chaque environnement a ses propres secrets, définis dans GitHub Environments, de façon à ce qu'un secret de production ne soit jamais accessible depuis dev ou pré-prod.
+Chaque environnement a ses propres secrets, définis dans GitHub Environments, de façon à ce qu'un secret de production ne soit jamais accessible depuis dev, test ou pré-prod.
+
+**Configuration par environnement.** L'image est la même ; seule la configuration change, choisie par un profil Spring (`SPRING_PROFILES_ACTIVE`) côté back et par une configuration lue à l'exécution côté front.
+
+| | Développement | Test | Pré-production | Production |
+|---|---|---|---|---|
+| Profil Spring | `dev` | `test` | `preprod` | `prod` |
+| Fichier back | `application-dev.properties` | `application-test.properties` | `application-preprod.properties` | `application-prod.properties` |
+| URL de l'API (front) | `http://localhost:8080` | URL de l'instance de test ou du service Compose | URL de pré-prod | URL de production |
+| Base de données | HSQLDB en mémoire / démo | Jetable, recréée à chaque exécution | Persistante, données anonymisées | Persistante, données réelles |
+| Logs / débogage | Détaillés, endpoints de débogage permis | Détaillés | Niveau production | Niveau production, aucun endpoint de débogage |
+| Secrets | Aucun secret réel (valeurs factices) | GitHub Environments `test` | GitHub Environments `preprod` | GitHub Environments `prod` |
+
+État actuel : un seul `application.properties` (nom de l'application uniquement) et l'URL de l'API écrite en dur dans `config.ts` ; les profils et fichiers ci-dessus sont à créer (phase 2 de la feuille de route).
 
 ### 4.4 Stratégie de déploiement et publication des images
 
@@ -204,7 +220,8 @@ Mise en œuvre par environnement :
 
 | Environnement | Déclencheur | Tag déployé | Validation |
 |---------------|-------------|-------------|-----------|
-| Dev | Fusion sur `develop` | SHA du commit (aussi tagué `X.Y.Z-SNAPSHOT`) | Automatique |
+| Développement | Aucun déploiement : lancement local | Tag choisi ou build local | Aucune |
+| Test | PR (runner jetable), puis fusion sur `develop` | SHA du commit (aussi tagué `X.Y.Z-SNAPSHOT`) | Automatique ; tests e2e nocturnes |
 | Pré-production | Fusion sur `main` | SHA du commit (aussi tagué `vX.Y.Z`) | Automatique ; tests e2e nocturnes |
 | Production | Lancement manuel du workflow de déploiement | **Le même SHA que la pré-production**, sans reconstruction | Approbation d'un relecteur via GitHub Environments |
 
@@ -253,7 +270,7 @@ Un workflow `rollback.yml` (déclenchement manuel, `workflow_dispatch`) permet d
 
 | Paramètre | Rôle |
 |-----------|------|
-| Environnement | `dev`, `preprod` ou `prod` |
+| Environnement | `test`, `preprod` ou `prod` |
 | Tag à déployer | Un tag immuable existant dans le registre (SHA ou `vX.Y.Z`) ; par défaut, la version précédente enregistrée |
 
 - Pour la production, le workflow demande la même **approbation** qu'un déploiement normal.
@@ -286,7 +303,7 @@ Le déploiement n'est pas une étape isolée : il n'a lieu que si les contrôles
 | Push sur `features/*` ou `fix/*` | Tests unitaires et d'intégration, qualité (SonarQube Cloud), détection de secrets | Partie 1 § 3.2, partie 2 § 4 |
 | PR vers `develop` | Idem, plus SAST (CodeQL), dépendances et licences, scan du `Dockerfile`, build de l'image et test de fumée ; relecture et approbation | Partie 1 § 3.2, partie 2 § 4 et 6 |
 | Fusion sur `develop` | Build, test de fumée, scan, puis publication | § 3.5 |
-| **Déploiement en dev** | Image publiée et scannée ; healthcheck | § 4.4 |
+| **Déploiement en test** | Image publiée et scannée ; healthcheck | § 4.4 |
 | PR vers `main` | Tous les contrôles précédents, plus scan des images (Trivy) ; relecture et approbation | Partie 1 § 3.2 d) |
 | **Déploiement en pré-production** | Fusion sur `main` ; image publiée et scannée ; healthcheck puis test de fumée | § 4.4 |
 | **Déploiement en production** | Pré-production saine ; approbation manuelle ; **même image** que la pré-production | § 4.2 |
@@ -309,7 +326,7 @@ Les contrôles périodiques surveillent des environnements déjà en ligne et ne
 
 | Contrôle | Fréquence | Effet d'un échec |
 |----------|-----------|------------------|
-| Tests e2e sur dev (`develop`) et pré-production (`main`) | Chaque nuit | Issue ; à traiter avant le prochain déploiement en production |
+| Tests e2e sur test (`develop`) et pré-production (`main`) | Chaque nuit | Issue ; à traiter avant le prochain déploiement en production |
 | Audit des dépendances | Chaque nuit | Issue ; correction dans le délai prévu (plan de sécurité § 7) |
 | Rebuild sans cache et scan des images | Chaque semaine | Issue ; mise à jour des images de base |
 | Sauvegarde et restauration de la base | Chaque semaine | Issue ; la restauration doit être corrigée avant tout déploiement qui modifie la base |
