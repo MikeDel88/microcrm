@@ -20,6 +20,7 @@ env:
   JAVA_VERSION: 17
 
 jobs:
+  # TESTS
   back-tests:
     runs-on: ubuntu-22.04
     defaults:
@@ -35,6 +36,7 @@ jobs:
       - run: chmod +x gradlew
       - name: Tests Back
         run: ./gradlew test
+
   front-tests:
     runs-on: ubuntu-22.04
     defaults:
@@ -50,7 +52,7 @@ jobs:
       - run: npm ci
       - name: Tests Front
         run: npm run test:ci
-
+  # BUILD
   build:
     runs-on: ubuntu-22.04
     steps:
@@ -75,3 +77,14 @@ jobs:
         run: |
           npm ci
           npm run build
+
+  # QUALITE
+  secrets:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
