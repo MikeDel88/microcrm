@@ -34,7 +34,7 @@ jobs:
           cache: gradle
       - run: chmod +x gradlew
       - name: Tests Back
-        run: .gradlew test
+        run: ./gradlew test
   front-tests:
     runs-on: ubuntu-22.04
     defaults:
