@@ -36,7 +36,14 @@ jobs:
       - run: chmod +x gradlew
       - name: Tests Back
         run: ./gradlew test
-
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: back-reports
+          path: |
+            back/build/reports
+            back/build/test-results
+            back/build/classes
   front-tests:
     runs-on: ubuntu-22.04
     defaults:
@@ -94,3 +101,19 @@ jobs:
       - uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  linter:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+      - run: npm ci
+      - name: Lint Front
+        run: npm run lint
+
