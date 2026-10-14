@@ -142,4 +142,22 @@ jobs:
         with:
           name: front-linter
           path: front/eslint-report.html
+  sonar:
+    needs: [back-tests, front-tests]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v7
+        with:
+          name: back-reports
+          path: back/build
+      - uses: actions/download-artifact@v7
+        with:
+          name: front-coverage
+          path: front/coverage
+      - uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
