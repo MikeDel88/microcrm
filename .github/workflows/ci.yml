@@ -91,6 +91,7 @@ jobs:
           npm ci
           npm run build
 
+
   # QUALITE
   secrets:
     runs-on: ubuntu-22.04
@@ -135,5 +136,10 @@ jobs:
           cache-dependency-path: front/package-lock.json
       - run: npm ci
       - name: Lint Front
-        run: npm run lint
+        run: npm run lint -- --format html --output-file eslint-report.html
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: front-linter
+          path: front/eslint-report.html
 
