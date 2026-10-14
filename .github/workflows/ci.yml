@@ -184,14 +184,13 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.language == 'java-kotlin' && 'manual' || 'none' }}
-            - name: Build pour CodeQL (Java)
-              if: matrix.language == 'java-kotlin'
-              working-directory: back
-              run: |
-                chmod +x gradlew
-                ./gradlew build -x test
-            - uses: github/codeql-action/analyze@v3
-
+      - name: Build pour CodeQL (Java)
+        if: matrix.language == 'java-kotlin'
+        working-directory: back
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x test
+      - uses: github/codeql-action/analyze@v3
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
@@ -200,7 +199,6 @@ jobs:
       - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
-
   npm-audit:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
