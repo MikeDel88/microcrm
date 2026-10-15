@@ -221,10 +221,31 @@ jobs:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
       - name: Build image docker (test)
+        env:
+          COMPOSE_PROJECT_NAME: microcrm
         run: docker compose -f compose.yml -f compose.test.yml up -d --build --wait --wait-timeout 120
       - name: Cas d'echec
         if: failure()
         run: docker compose -f compose.yml -f compose.test.yml logs
+      - name: Scan Trivy (back)
+        if: github.base_ref == 'main'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: microcrm-back
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: Scan Trivy (front)
+        if: github.base_ref == 'main'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: microcrm-front
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: Nettoyage
+        if: always()
+        run: docker compose -f compose.yml -f compose.test.yml down -v || true
 
   # CI VALIDATION
   ci-ok:
