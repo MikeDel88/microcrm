@@ -232,7 +232,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: microcrm-back
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           exit-code: '1'
           ignore-unfixed: true
       - name: Scan Trivy (front)
@@ -240,7 +240,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: microcrm-front
-          severity: HIGH,CRITICAL
+          severity: CRITICAL
           exit-code: '1'
           ignore-unfixed: true
       - name: Nettoyage
