@@ -213,6 +213,19 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm audit --audit-level=high --json
 
+  # BUILD IMAGE DOCKER
+  buildx:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build image docker (test)
+        run: docker compose -f compose.yml -f compose.test.yml up -d --build --wait --wait-timeout 120
+      - name: Cas d'echec
+        if: failure()
+        run: docker compose -f compose.yml -f compose.test.yml logs
+
   # CI VALIDATION
   ci-ok:
     if: always()
