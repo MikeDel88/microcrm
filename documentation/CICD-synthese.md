@@ -11,7 +11,7 @@ Ce document définit **quand**, **comment** et **dans quel objectif** les tests,
 
 | Élément | État actuel | Conséquence |
 |---------|-------------|-------------|
-| Application | Démonstration : personnes et organisations. Back Spring Boot 3 (Java 17, Gradle), front Angular 17 | Pipeline proportionné |
+| Application | Démonstration : personnes et organisations. Back Spring Boot 4 (Java 17, Gradle 8.14), front Angular 17 | Pipeline proportionné |
 | Base de données | HSQLDB en mémoire | Pas de sauvegarde à prévoir |
 | Authentification | Aucune | Risque signalé, non corrigé par le pipeline |
 | Tests | 2 classes JUnit, 6 fichiers Karma, aucun e2e | Couverture à mesurer avant tout seuil |

@@ -12,7 +12,7 @@ Définir **quand**, **comment** et **dans quel objectif** les tests, les contrô
 ## Périmètre
 
 - Application : MicroCRM (monorepo)
-  - `back/` : Spring Boot 3, Java 17, Gradle
+  - `back/` : Spring Boot 4, Java 17, Gradle 8.14
   - `front/` : Angular 17, Karma/Jasmine
 - Plateforme CI/CD : GitHub Actions
 - Livrables conteneurisés : `Dockerfile` multi-stage (cibles `front` et `back`)

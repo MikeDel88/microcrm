@@ -33,7 +33,7 @@ Le `Dockerfile` du dépôt est multi-stage et définit quatre étapes (deux de c
 | Étape | Rôle |
 |-------|------|
 | `front-build` | Compile l'application Angular (`npm ci`, puis `npm run build`) sur `node:20-alpine` |
-| `back-build` | Compile l'application Spring Boot (`./gradlew bootJar -x test`) et produit le JAR |
+| `back-build` | Compile l'application Spring Boot 4 (`./gradlew bootJar -x test`) et produit le JAR ; la version de Gradle (8.14.5) du `Dockerfile` est alignée sur celle du wrapper |
 | `front` (cible) | Image d'exécution : Caddy sert les fichiers statiques du front |
 | `back` (cible) | Image d'exécution : JRE qui lance le JAR |
 
