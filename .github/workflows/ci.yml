@@ -261,6 +261,7 @@ jobs:
       - codeql
       - dependency-review
       - npm-audit
+      - buildx
     runs-on: ubuntu-22.04
     steps:
       - run: |
