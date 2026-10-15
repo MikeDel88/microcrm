@@ -68,7 +68,7 @@ Ce chapitre résume **dans quel ordre** mettre en place ce que décrivent les pa
 
 ## Étape 6 : images et publication
 
-- PR vers `develop` et `main` : build des cibles et test de fumée sur image jetable ; scan Trivy sur `main` en plus.
+- PR vers `develop` et `main` : build des cibles et test de fumée sur image jetable ; scan Trivy sur `main` en plus. Ce scan a révélé des CVE qui ont imposé le passage à Spring Boot 4 (voir [plan de sécurité § 7](02-plan-de-securite.md#retour-dexpérience--cve-détectées-par-trivy-et-passage-à-spring-boot-4)).
 - Fusion : build, test de fumée et scan rejoués, **puis** publication dans GHCR avec les tags SHA, nom de branche, `X.Y.Z-SNAPSHOT` (`develop`) ou `vX.Y.Z` (`main`).
 
 ## Étape 7 : déploiement
