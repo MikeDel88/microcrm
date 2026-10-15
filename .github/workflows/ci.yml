@@ -92,6 +92,7 @@ jobs:
           npm run build
 
 
+
   # QUALITE
   secrets:
     runs-on: ubuntu-22.04
@@ -214,6 +215,7 @@ jobs:
 
   # CI VALIDATION
   ci-ok:
+    if: always()
     needs:
       - front-tests
       - back-tests
