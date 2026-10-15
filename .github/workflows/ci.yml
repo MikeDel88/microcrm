@@ -212,3 +212,25 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm audit --audit-level=high --json
 
+  # CI VALIDATION
+  ci-ok:
+    needs:
+      - front-tests
+      - back-tests
+      - build
+      - secrets
+      - linter-back
+      - linter-front
+      - sonar
+      - codeql
+      - dependency-review
+      - npm-audit
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "Au moins un job a échoué ou a été annulé"
+            exit 1
+          fi
+          echo "Tous les contrôles requis sont au vert"
+
