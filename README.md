@@ -140,16 +140,10 @@ docker run -it --rm -p 8080:8080 orion-microcrm-back:latest
 
 L'API sera disponible sur http://localhost:8080.
 
-#### Tout en un
+#### Front et back avec Docker Compose
 
 ```shell
-docker build --target standalone -t orion-microcrm-standalone:latest .
+docker compose up --build
 ```
 
-##### Exécuter l'image
-
-```shell
-docker run -it --rm -p 8080:8080 -p 80:80 -p 443:443 orion-microcrm-standalone:latest
-```
-
-L'application sera disponible sur https://localhost et l'API sur http://localhost:8080.
+L'application sera disponible sur https://localhost et l'API sur http://localhost:8080. Par défaut, le back utilise le profil `dev` ; pour le profil `test` : `docker compose -f compose.yml -f compose.test.yml up --build`.

@@ -1,5 +1,7 @@
 /back/.gradle
 /back/build
+/back/.idea
 /front/dist
 /front/node_modules
 /front/.angular
+/front/.idea

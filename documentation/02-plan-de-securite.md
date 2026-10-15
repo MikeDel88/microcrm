@@ -154,6 +154,22 @@ Appliquées à `develop` **et** `main` via les règles de protection de branche 
 5. **Exception** : acceptation documentée, responsable désigné, date de réexamen.
 6. **Vérification** : le contrôle automatisé repasse au vert après le correctif.
 
+### Retour d'expérience : CVE détectées par Trivy et passage à Spring Boot 4
+
+L'ajout du scan Trivy sur les PR vers `main` (sévérités `HIGH,CRITICAL`, `exit-code: 1`, vulnérabilités sans correctif ignorées) a fait apparaître des CVE de sécurité dans les dépendances du back. Elles bloquaient la CI et ont dû être traitées avant de pouvoir fusionner.
+
+| Étape | Action | Résultat |
+|-------|--------|----------|
+| 1 | Montée mineure de Spring Boot (3.4.5 → 3.5.16) | Insuffisant : des CVE restaient détectées |
+| 2 | Passage à **Spring Boot 4.0.8** et **Gradle 8.14.5** (wrapper et `Dockerfile`) | CVE corrigées, scan au vert |
+| 3 | Adaptation des tests | Spring Boot 4 découpe les modules de test : ajout de `spring-boot-starter-data-jpa-test` et déplacement des imports `DataJpaTest` (`org.springframework.boot.data.jpa.test.autoconfigure`) et `TestEntityManager` (`org.springframework.boot.jpa.test.autoconfigure`) |
+
+Enseignements :
+
+- un scan bloquant révèle la dette de dépendances : une montée de version majeure peut être la seule correction, il faut prévoir ce temps ;
+- une montée majeure du framework touche aussi les tests et l'outillage de build (Gradle, `Dockerfile`), d'où l'intérêt de la CI pour valider l'ensemble ;
+- les identifiants des CVE concernées sont consultables dans les rapports Trivy des exécutions de la CI.
+
 ## 8. Points à valider
 
 - Sera-t-il introduit une authentification dans MicroCRM ? Plusieurs catégories (A01, A07) en dépendent : sans elle, le plan ne peut que signaler l'API comme ouverte.
