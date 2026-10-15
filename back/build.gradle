@@ -1,5 +1,7 @@
 plugins {
 	id 'java'
+	id 'checkstyle'
+	id 'jacoco'
 	id 'org.springframework.boot' version '3.2.5'
 	id 'io.spring.dependency-management' version '1.1.4'
 	id 'com.adarshr.test-logger' version '4.0.0'
@@ -26,6 +28,12 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+checkstyle {
+	toolVersion = '10.17.0'
+	configFile = file('config/checkstyle/checkstyle.xml')
+	maxWarnings = 0
+}
+
 bootJar {
 	archiveFileName = 'microcrm.jar'
 }
@@ -34,4 +42,11 @@ test {
     useJUnitPlatform()
     // Les tests utilisent toujours le profil « test », jamais « dev »
     environment 'SPRING_PROFILES_ACTIVE', 'test'
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+	reports {
+		xml.required = true
+	}
 }
