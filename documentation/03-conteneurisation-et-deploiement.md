@@ -97,7 +97,7 @@ Quelle commande pour quel usage :
 | Faire tourner une version publiée | `TAG=1.2.0 docker compose -f compose.yml -f compose.release.yml up -d` |
 | Test de fumée en CI | `docker compose -f compose.yml -f compose.test.yml up -d --build --wait` |
 
-Le développement garde le `build:` local : l'image `SNAPSHOT` reflète le dernier état fusionné de `develop`, pas la branche `feature/*` en cours, et elle supprime la boucle courte modifier-reconstruire-tester. Les images GHCR sont privées tant que le package n'est pas rendu public (sinon `docker login ghcr.io` préalable). Il n'existe pas encore de `application-prod.properties` : le profil `prod` utilise `application.properties` seul.
+Le développement garde le `build:` local : l'image `SNAPSHOT` reflète le dernier état fusionné de `develop`, pas la branche `feature/*` en cours, et elle supprime la boucle courte modifier-reconstruire-tester. Les images GHCR sont privées tant que le package n'est pas rendu public (sinon `docker login ghcr.io` préalable). Le profil `prod` (`back/src/main/resources/application-prod.properties`, embarqué dans le JAR) réduit les logs (`INFO`, SQL masqué) ; la base reste HSQLDB en mémoire, donc non persistante.
 - Les volumes contiennent la base persistante, ce qui rend possible la sauvegarde et la restauration (partie 1, § 3.6).
 
 ## 3. Registre et versionnement des images
