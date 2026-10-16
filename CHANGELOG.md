@@ -1,0 +1,22 @@
+# 1.0.0 (2026-10-16)
+
+
+### Bug Fixes
+
+* **cd:** scan image before release because must detect CVE in first. ([21c067f](https://github.com/MikeDel88/microcrm/commit/21c067fc8e3646c0e2fb13050c19f6dc18214dd8))
+* change quality of code with linter and checkstyle reports. ([36e9ce5](https://github.com/MikeDel88/microcrm/commit/36e9ce5ce74d6659ff6a160897b5fd29770ecd7f))
+* **ci:** add always in ci-ok. ([018488c](https://github.com/MikeDel88/microcrm/commit/018488cf82c78c22672bcb74e2bf873d2a88a97e))
+* **ci:** add buildx into needs in ci-ok. ([34972ef](https://github.com/MikeDel88/microcrm/commit/34972ef8634730bc4432d08ce0f46b7d6f327e6e))
+* **ci:** change gradle version in Dockerfile ([8237329](https://github.com/MikeDel88/microcrm/commit/8237329f7e72251db97386379789209479c9554a))
+* **ci:** change npm audit level high -> none. ([7158df1](https://github.com/MikeDel88/microcrm/commit/7158df1cd8daeb6b0f89a2cc289d08b280e71608))
+* **ci:** fix cmd for launch back test. ([7a8496e](https://github.com/MikeDel88/microcrm/commit/7a8496ec07f4a2431af6f7239f6a77036c11eaaf))
+* **ci:** fix codeql version with init and analyze ([2c22db1](https://github.com/MikeDel88/microcrm/commit/2c22db17fb1341b6ec6f37287205b485cdc4cc16))
+* **ci:** fix problem in syntax yaml. ([60afee8](https://github.com/MikeDel88/microcrm/commit/60afee8b717b3ccbfbfc3d92acae32b4d9c0b4be))
+* **ci:** update minor version of springboot. ([c9a7717](https://github.com/MikeDel88/microcrm/commit/c9a7717c814fee4dcededa64020bd9d2852c1318))
+* **ci:** update version for actions. ([ab5ee23](https://github.com/MikeDel88/microcrm/commit/ab5ee23f4ae19a2f8e349cbbf233e7e23f1f029b))
+* **ci:** upgrade spring boot version > 3.5.16. ([0a4f350](https://github.com/MikeDel88/microcrm/commit/0a4f350f318fa932feb54759eb01f590ff7ddb6c))
+* **ci:** upgrade spring boot version > 4.0.8 + gradle > 8.14.5 ([977f814](https://github.com/MikeDel88/microcrm/commit/977f814e61673e722addf0352299477578e28c3e))
+* **docker:** change Dockerfile with optimization. ([86e3e9b](https://github.com/MikeDel88/microcrm/commit/86e3e9b9e8c0cafbecdb5ba6861ba058c3d3b4e9))
+* **Linter:** add config ESLint ([e544b17](https://github.com/MikeDel88/microcrm/commit/e544b17cd7b44dbfdc05cbf3581244d19c49adae))
+* **security:** ext tomcat and jackson version for CVE report by trivy. ([ba9f350](https://github.com/MikeDel88/microcrm/commit/ba9f3504fb9c3747a49f2fba58edd445e1a22726))
+* **test:** with new version spring boot, update dependency. test ([9abb304](https://github.com/MikeDel88/microcrm/commit/9abb30432af2ef90028e41af7c7656d1eb14732d))
