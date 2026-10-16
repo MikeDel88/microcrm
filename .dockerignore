@@ -1,7 +1,40 @@
-/back/.gradle
-/back/build
-/back/.idea
-/front/dist
-/front/node_modules
-/front/.angular
-/front/.idea
+# Contexte de build : racine du dépôt (voir Dockerfile).
+# Le Dockerfile n'a besoin que de front/, back/ et misc/docker/Caddyfile.
+
+# Git, CI et IDE
+.git
+.github
+.idea
+**/.idea
+.vscode
+**/.vscode
+
+# Documentation et outillage de release
+documentation
+README.md
+**/README.md
+**/HELP.md
+misc/screenshots
+package.json
+package-lock.json
+.releaserc.json
+
+# Compose et fichiers Docker
+compose*.yml
+Dockerfile
+.dockerignore
+
+# Dépendances et sorties de build locales (reconstruites dans l'image)
+**/node_modules
+front/dist
+front/.angular
+front/coverage
+back/build
+back/bin
+back/.gradle
+**/.gradle
+
+# Rapports et divers
+**/*.log
+**/eslint-report.html
+sonar-project.properties

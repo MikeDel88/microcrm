@@ -69,7 +69,10 @@ Ce chapitre résume **dans quel ordre** mettre en place ce que décrivent les pa
 ## Étape 6 : images et publication
 
 - PR vers `develop` et `main` : build des cibles et test de fumée sur image jetable ; scan Trivy sur `main` en plus. Ce scan a révélé des CVE qui ont imposé le passage à Spring Boot 4 (voir [plan de sécurité § 7](02-plan-de-securite.md#retour-dexpérience--cve-détectées-par-trivy-et-passage-à-spring-boot-4)).
-- Fusion : build, test de fumée et scan rejoués, **puis** publication dans GHCR avec les tags SHA, nom de branche, `X.Y.Z-SNAPSHOT` (`develop`) ou `vX.Y.Z` (`main`).
+- Fusion sur `develop` ou `main` (`cd.yml`) : build des cibles `back` et `front` du `Dockerfile` (une image chacune) et publication dans GHCR avec les tags SHA et nom de branche, plus `SNAPSHOT` sur `develop`.
+- Fusion sur `main` : **semantic-release** calcule la version d'après les commits conventionnels (`feat:` → mineure, `fix:` → correctif, `BREAKING CHANGE` → majeure), met à jour `CHANGELOG.md`, crée le tag `vX.Y.Z` et la GitHub Release. Les images `:sha` sont d'abord scannées (Trivy, critique bloquant) ; si semantic-release crée une version, elles sont **retaguées** `X.Y.Z` et `latest` sans reconstruction (même digest que le SHA testé). Sans commit `feat:`/`fix:`, aucune release.
+- Les branches `release/*` du Git Flow ne sont pas utilisées : semantic-release remplace ce rôle. Flux : `feature/*`/`fix/*` → `develop` → `main`.
+- **Secret `RELEASE_TOKEN`** : un PAT (Personal Access Token, jeton généré depuis le compte GitHub et agissant en son nom, à droits limités) est nécessaire pour que semantic-release pousse le commit du changelog sur `main` protégée. Fine-grained, limité au dépôt, avec `Contents`, `Issues` et `Pull requests` en lecture/écriture, expiration à renouveler (90 jours conseillé) ; son propriétaire doit pouvoir contourner la protection de `main`. Stocké dans les secrets Actions, jamais dans le dépôt.
 
 ## Étape 7 : déploiement
 
