@@ -33,6 +33,12 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
+      - name: Image name (minuscules, requis par GHCR)
+        id: image
+        run: |
+          IMAGE=$(echo "${REGISTRY}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
+          echo "name=${IMAGE}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -44,7 +50,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}
+          images: ${{ steps.image.outputs.name }}
           tags: |
             type=sha,format=long,prefix=
             type=ref,event=branch
@@ -66,13 +72,43 @@ jobs:
         if: github.event_name == 'push'
         uses: actions/attest@v4
         with:
-          subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}
+          subject-name: ${{ steps.image.outputs.name }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
+  # SCAN : l'image :sha doit être saine avant toute release (main uniquement)
+  scan:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [back, front]
+    steps:
+      - name: Image name
+        id: image
+        run: |
+          IMAGE=$(echo "${REGISTRY}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
+          echo "name=${IMAGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Scan Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
   # RELEASE : version calculée par semantic-release (main uniquement)
   release:
-    needs: build
+    needs: scan
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
     concurrency:
@@ -105,7 +141,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
-  # PROMOTION : scan puis retag de l'image :sha en :X.Y.Z et :latest (sans rebuild)
+  # PROMOTION : retag de l'image :sha en :X.Y.Z et :latest (sans rebuild)
   promote:
     needs: release
     if: needs.release.outputs.version != ''
@@ -130,17 +166,6 @@ jobs:
         run: |
           IMAGE=$(echo "${REGISTRY}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
           echo "name=${IMAGE}" >> "$GITHUB_OUTPUT"
-
-      - name: Scan Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          image-ref: ${{ steps.image.outputs.name }}:${{ github.sha }}
-          severity: CRITICAL
-          exit-code: '1'
-          ignore-unfixed: true
 
       - name: Retag image with release version
         run: |

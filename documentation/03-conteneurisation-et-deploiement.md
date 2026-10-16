@@ -182,7 +182,7 @@ Si le workflow de publication échoue après la fusion, le code est déjà inté
 1. **Relancer le workflow** (*Re-run jobs* ou `workflow_dispatch`) si la cause est temporaire (réseau, registre). La publication repart du même SHA.
 2. **Corriger en avant** : nouvelle PR avec le correctif (les branches étant protégées, c'est le chemin normal).
 3. **Revert** : PR qui annule le commit fautif si le correctif prend du temps.
-4. L'image `:sha` est publiée avant la release ; les tags `X.Y.Z` et `latest` ne sont posés qu'après le scan Trivy. Si le scan échoue, relancer après correctif : une release Git sans image versionnée est possible et se corrige par un retag manuel.
+4. L'image `:sha` est publiée, puis **scannée avant la release** : si Trivy trouve un CVE critique, ni tag Git, ni changelog, ni GitHub Release, ni tag `X.Y.Z` ne sont créés. Seul le retag final (`X.Y.Z`, `latest`) peut échouer après la release ; il se relance sans reconstruire.
 5. L'échec déclenche une notification et une issue. Tant que `develop` ou `main` est en échec, aucune nouvelle fusion n'est faite avant correction.
 
 ## 4. Environnements et stratégie de déploiement
