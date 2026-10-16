@@ -25,7 +25,7 @@ Ce document définit **quand**, **comment** et **dans quel objectif** les tests,
 
 ### 2.1 Branches
 
-`features/*` ou `fix/*` → PR → `develop` → PR → `main`. **Aucun push direct** sur `develop` ni `main` : toute modification passe par une pull request, imposée par les règles de protection de branche. Les workflows de fusion réagissent à l'événement `push` produit par la fusion, pas à un push de développeur.
+`features/*` ou `fix/*` → PR → `develop` → PR → `main`. **Aucun push direct** sur `develop` ni `main` : toute modification passe par une pull request, imposée par les règles de protection de branche. Les workflows de fusion réagissent à l'événement `push` produit par la fusion, pas à un push de développeur. Il n'y a **pas de branches `release/*`** : la version est décidée par semantic-release sur `main` (§ 4.3).
 
 ### 2.2 Calendrier et contenu
 
@@ -100,7 +100,7 @@ Les vulnérabilités sans correctif disponible sont consignées dans un fichier 
 | Répond à | *Comment construire une image ?* | *Comment faire tourner l'ensemble ?* |
 | Utilisé par | Le job de build de la CI | Le développement local, le test de fumée en CI |
 
-Le `Dockerfile` est multi-stage (compilation front et back, cibles `front` avec Caddy, `back` avec le JAR). Un `compose.yml` unique, à créer, décrit les services ; l'image est référencée par variable (`IMAGE_TAG`).
+Le `Dockerfile` est multi-stage (compilation front et back, cibles `front` avec Caddy, `back` avec le JAR). Un `compose.yml` décrit les services et leur build depuis le `Dockerfile` (utilisé par la CI), avec les surcharges `compose.dev.yml` et `compose.test.yml`. `compose.release.yml` exécute les images publiées dans GHCR (`TAG=X.Y.Z docker compose -f compose.yml -f compose.release.yml up -d`, profil Spring `prod` forcé) ; en développement, on garde le build local, `TAG=SNAPSHOT` servant à tester l'état de `develop`.
 
 Quatre environnements, chacun avec sa configuration (profil Spring et variables) : **développement** (poste, profil `dev`), **test** (CI puis `develop`, profil `test`, où tournent tous les tests), **pré-production** (`main`) et **production** (promotion de la même image, après approbation).
 
@@ -123,12 +123,14 @@ Registre : **GitHub Container Registry**. Aucune image n'est construite sur un p
 | Événement | Image | Tags |
 |-----------|-------|------|
 | PR vers `develop` ou `main` | Construite pour le test de fumée (et le scan sur `main`), non publiée | – |
-| Fusion sur `develop` | Build, test de fumée, puis publiée | SHA du commit, `develop`, `X.Y.Z-SNAPSHOT` |
-| Fusion sur `main` | Build, test de fumée, puis publiée | SHA du commit, `main`, `vX.Y.Z` |
+| Fusion sur `develop` | Une image par service (`microcrm-back`, `microcrm-front`), publiée | SHA du commit, `develop`, `SNAPSHOT` |
+| Fusion sur `main` | Idem, puis promue si semantic-release crée une version | SHA du commit, `main`, puis `X.Y.Z` et `latest` (tag Git `vX.Y.Z`) |
 
-Règles : le **SHA est immuable** et sert de référence pour déployer ; les tags de branche et `-SNAPSHOT` sont mobiles et ne servent jamais à déployer ; pas de tag `latest`. La version est lue dans `back/build.gradle`, jamais saisie à la main. Chaque image publiée est scannée et accompagnée de son SBOM (joint à la release pour `main`). Nettoyage : 20 derniers builds `develop` conservés, versions `vX.Y.Z` conservées.
+Règles : le **SHA est immuable** et sert de référence pour déployer ; les tags de branche et `SNAPSHOT` sont mobiles et ne servent jamais à déployer ; `latest` désigne la dernière version stable de `main`. La version n'est jamais saisie à la main : elle est calculée par **semantic-release** d'après les commits conventionnels. Le scan Trivy (CRITICAL) porte sur l'image `:sha` avant la promotion. Nettoyage : 20 derniers builds `develop` conservés, versions `X.Y.Z` conservées.
 
-**Valider avant la fusion, publier après** : build et test de fumée sont vérifiés sur la PR ; après la fusion, le workflow rejoue **build, test de fumée, scan, puis push**, afin de ne jamais publier une image qui n'a pas démarré. En cas d'échec après fusion, rien n'est publié ni déployé : relance du workflow si la cause est temporaire, sinon correctif ou revert par PR. Le tag de version et la release ne sont créés qu'après une publication réussie.
+**Release et changelog** : sur `main`, semantic-release génère `CHANGELOG.md` (commité par `chore(release): X.Y.Z [skip ci]`), le tag `vX.Y.Z` et la GitHub Release. Sans `feat:` ni `fix:` depuis la dernière version (uniquement `chore:`, `docs:`…), il n'y a ni release ni retag. Le commit de changelog sur `main` protégée exige le secret **`RELEASE_TOKEN`** : un PAT (*Personal Access Token*), jeton généré depuis le compte GitHub qui agit en son nom avec les droits accordés. Contrairement à `GITHUB_TOKEN` (éphémère, lié au bot), il est créé à la main, expire à une date choisie et doit être renouvelé. Il est fine-grained, limité au dépôt (`Contents`, `Issues`, `Pull requests` en lecture/écriture), stocké dans les secrets Actions, et son propriétaire peut contourner la protection de `main`.
+
+**Valider avant la fusion, publier après** : build et test de fumée sont vérifiés sur la PR ; après la fusion, le workflow rejoue **build, test de fumée, scan, puis push**, afin de ne jamais publier une image qui n'a pas démarré. En cas d'échec après fusion, rien n'est publié ni déployé : relance du workflow si la cause est temporaire, sinon correctif ou revert par PR. L'image `:sha` est publiée avant la création du tag de version ; les tags `X.Y.Z` et `latest` ne sont posés qu'après le scan Trivy. En cas d'échec du scan, la release Git existe mais sans image versionnée : corriger par PR puis retaguer à la main (`docker buildx imagetools create`).
 
 ### 4.4 « Déploiement » et retour arrière
 
