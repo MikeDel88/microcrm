@@ -4,3 +4,8 @@
 
 # Outillage de release (semantic-release)
 node_modules/
+
+# ELK
+.env.elk
+elk/*_ingest_data/*
+!elk/*_ingest_data/.gitkeep

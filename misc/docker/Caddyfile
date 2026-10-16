@@ -1,6 +1,10 @@
 * {
 	root * /app/front
 	encode gzip
+	log {
+		output stdout
+		format json
+	}
 	try_files {path} /index.html
 	file_server
 }
