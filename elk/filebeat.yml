@@ -4,13 +4,18 @@ filebeat.inputs:
     paths:
       - /usr/share/filebeat/ingest_data/*.log
 
-filebeat.autodiscover:
-  providers:
-    - type: docker
-      hints.enabled: true
+  - type: container
+    id: docker-containers
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_docker_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+          add_error_key: false
 
-processors:
-  - add_docker_metadata: ~
 
 setup.kibana:
   host: "http://kibana:5601"

@@ -141,7 +141,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
-    command: ["--strict.perms=false"]
+    command: ["-e", "--strict.perms=false"]
 
   logstash01:
     depends_on:
