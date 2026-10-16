@@ -1,0 +1,13 @@
+# Exécution des images publiées dans GHCR (aucun build local).
+# Usage : TAG=1.2.0 docker compose -f compose.yml -f compose.release.yml up -d
+# TAG : version (X.Y.Z), SHA du commit ou, à défaut de mieux, SNAPSHOT / latest (tags mobiles, à éviter pour déployer).
+# Le profil Spring est forcé (prod par défaut), il ne retombe jamais sur `dev`.
+services:
+  back:
+    image: ghcr.io/mikedel88/microcrm-back:${TAG:?TAG requis (version X.Y.Z ou SHA)}
+    pull_policy: always
+    environment:
+      SPRING_PROFILES_ACTIVE: ${RELEASE_PROFILE:-prod}
+  front:
+    image: ghcr.io/mikedel88/microcrm-front:${TAG:?TAG requis (version X.Y.Z ou SHA)}
+    pull_policy: always

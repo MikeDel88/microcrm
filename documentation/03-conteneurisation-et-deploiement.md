@@ -80,11 +80,24 @@ Organisation proposée :
 
 | Fichier | Contenu |
 |---------|---------|
-| `compose.yml` | Définition commune : services, réseau, volumes, healthchecks. L'image est référencée par variable (`image: ghcr.io/…/microcrm-back:${IMAGE_TAG}`) |
-| `compose.dev.yml` / `compose.test.yml` / `compose.preprod.yml` / `compose.prod.yml` | Spécificités de l'environnement (ports, nombre de réplicas, limites de ressources) |
+| `compose.yml` | Définition commune : services `front` et `back`, ports, `build:` depuis le `Dockerfile` (cibles `front` et `back`). **Sans `image:`** : la CI construit ainsi l'image depuis le Dockerfile, ce qui vérifie qu'elle se construit |
+| `compose.dev.yml` / `compose.test.yml` | Profil Spring (`dev`, `test`) ; healthcheck du back en test |
+| `compose.release.yml` | **Exécution des images publiées dans GHCR**, sans build local : `image: ghcr.io/mikedel88/microcrm-{back,front}:${TAG}`, `pull_policy: always`, profil Spring forcé (`prod` par défaut, `RELEASE_PROFILE` pour le changer) |
+| `compose.preprod.yml` / `compose.prod.yml` (à créer) | Spécificités de l'environnement (ports, nombre de réplicas, limites de ressources) |
 | `.env.<environnement>` | Variables non secrètes (tag d'image, URLs). **Les secrets ne sont jamais dans ces fichiers** : ils viennent de GitHub Environments |
 
-- Le tag d'image est fourni au déploiement (`IMAGE_TAG=sha-3f2a9c1`) : changer de version ou revenir en arrière revient à changer cette valeur.
+- Le tag d'image est fourni au déploiement par la variable `TAG` (obligatoire dans `compose.release.yml`, version `X.Y.Z` ou SHA) : changer de version ou revenir en arrière revient à changer cette valeur.
+
+Quelle commande pour quel usage :
+
+| Besoin | Commande |
+|--------|----------|
+| Développer avec **mon code local** (build depuis le Dockerfile) | `docker compose -f compose.yml -f compose.dev.yml up --build` |
+| Tester l'état de `develop` sans compiler (back seul ou front seul à développer, démo, poste sans JDK/Node) | `TAG=SNAPSHOT RELEASE_PROFILE=dev docker compose -f compose.yml -f compose.release.yml up -d` |
+| Faire tourner une version publiée | `TAG=1.2.0 docker compose -f compose.yml -f compose.release.yml up -d` |
+| Test de fumée en CI | `docker compose -f compose.yml -f compose.test.yml up -d --build --wait` |
+
+Le développement garde le `build:` local : l'image `SNAPSHOT` reflète le dernier état fusionné de `develop`, pas la branche `feature/*` en cours, et elle supprime la boucle courte modifier-reconstruire-tester. Les images GHCR sont privées tant que le package n'est pas rendu public (sinon `docker login ghcr.io` préalable). Le profil `prod` (`back/src/main/resources/application-prod.properties`, embarqué dans le JAR) réduit les logs (`INFO`, SQL masqué) ; la base reste HSQLDB en mémoire, donc non persistante.
 - Les volumes contiennent la base persistante, ce qui rend possible la sauvegarde et la restauration (partie 1, § 3.6).
 
 ## 3. Registre et versionnement des images
@@ -100,8 +113,8 @@ Conformément au plan de testing (partie 1), **aucune image n'est construite sur
 | Push sur `features/*` ou `fix/*` | Non | – |
 | PR vers `develop` | Oui, pour vérifier le build et le test de fumée | Non (image jetable) |
 | PR vers `main` | Oui, pour le test de fumée et le scan Trivy | Non (image jetable, supprimée à la fin du job) |
-| Fusion sur `develop` | Oui : build, test de fumée, puis push | Oui, tags SHA, `develop`, `X.Y.Z-SNAPSHOT` |
-| Fusion sur `main` | Oui : build, test de fumée, puis push | Oui, tags SHA, `main`, version |
+| Fusion sur `develop` | Oui : build, test de fumée, puis push | Oui, tags SHA, `develop`, `SNAPSHOT` |
+| Fusion sur `main` | Oui : build, test de fumée, puis push | Oui, tags SHA, `main`, puis `X.Y.Z` et `latest` si semantic-release crée une version |
 
 ### 3.2 Tags appliqués à chaque build publié
 
@@ -109,22 +122,23 @@ Conformément au plan de testing (partie 1), **aucune image n'est construite sur
 |-----|---------|--------|------|
 | **SHA du commit** | `sha-3f2a9c1` | Immuable | Identifie l'image de façon unique et la relie au commit exact. **C'est la référence utilisée pour déployer et promouvoir.** |
 | **Nom de la branche** | `develop`, `main` | Mobile (déplacé à chaque build) | Retrouver facilement le dernier build d'une branche |
-| **Version + `-SNAPSHOT`** (branche `develop` uniquement) | `1.3.0-SNAPSHOT` | Mobile (reconstruit à chaque fusion tant que la version ne change pas) | Indique la **version en cours de développement** ; reprend la version du JAR Gradle ; signale une image **non destinée à la production** |
-| **Version** (branche `main` uniquement) | `v1.2.0` | Immuable | Release identifiable, utilisée pour la production et le retour arrière |
+| **`SNAPSHOT`** (branche `develop` uniquement) | `SNAPSHOT` | Mobile (déplacé à chaque fusion sur `develop`) | Dernier build d'intégration ; signale une image **non destinée à la production** |
+| **Version** (branche `main` uniquement) | `1.2.0` (tag Git `v1.2.0`) | Immuable | Release calculée par semantic-release, posée par retag du SHA testé ; utilisée pour la production et le retour arrière |
+| **`latest`** (branche `main` uniquement) | `latest` | Mobile | Dernière version stable |
 
 ### 3.3 Règles
 
 - **Les tags mobiles ne servent jamais à déployer** : un déploiement cible un tag immuable (SHA ou version), ou mieux, le *digest* de l'image (`@sha256:…`), afin que ce qui est déployé soit exactement ce qui a été testé.
-- **Pas de tag `latest`** : ambigu et mobile. En cas de besoin, il désignerait la dernière version stable de `main`.
-- Les tags `X.Y.Z-SNAPSHOT` et de branche sont **mobiles par nature** ; ils n'ont de valeur que pour la commodité.
-- **Cycle de version** : `develop` porte la version à venir suffixée (`1.3.0-SNAPSHOT`). À la livraison sur `main`, le suffixe est retiré et l'image reçoit `v1.3.0` ; `develop` passe ensuite à la version suivante (`1.4.0-SNAPSHOT`).
-- **Source unique de la version** : la version vient de `version` dans `back/build.gradle` (aujourd'hui `0.0.1-SNAPSHOT`) et est lue par le workflow pour calculer les tags, afin qu'elle ne soit jamais saisie à la main. Le front a sa propre version dans `package.json` (aujourd'hui `0.0.0`) : il faut les aligner ou décider laquelle fait foi.
+- **`latest`** est mobile et ne sert pas à déployer ; il désigne la dernière version stable de `main`.
+- Les tags `SNAPSHOT` et de branche sont **mobiles par nature** ; ils n'ont de valeur que pour la commodité.
+- **Cycle de version** : pas de branches `release/*`. À la fusion sur `main`, semantic-release déduit la version des commits conventionnels (`feat:` → mineure, `fix:` → correctif, `BREAKING CHANGE` → majeure), crée le tag Git `vX.Y.Z`, met à jour `CHANGELOG.md` et l'image `:sha` déjà testée reçoit les tags `X.Y.Z` et `latest`.
+- **Source unique de la version** : l'historique Git (commits conventionnels et tags). La `version` de `back/build.gradle` et celle du `package.json` du front ne font pas foi pour les images. Le secret `RELEASE_TOKEN` (PAT) est requis pour pousser le changelog sur `main` protégée.
 - L'image promue de la pré-production à la production est la **même** (même SHA, même digest), avec en plus le tag de version (§ 4.2).
 
 ### 3.4 Nettoyage
 
-- Les images `develop` (`X.Y.Z-SNAPSHOT`) conservent les N derniers builds (par exemple 20).
-- Les images versionnées (`vX.Y.Z`) sont conservées, car elles permettent le retour arrière.
+- Les images `develop` (SHA, `SNAPSHOT`) conservent les N derniers builds (par exemple 20).
+- Les images versionnées (`X.Y.Z`) sont conservées, car elles permettent le retour arrière.
 - Les images de plus de 6 mois sans usage sont revues lors de la tâche hebdomadaire.
 
 ### 3.5 Valider avant la fusion, publier après
@@ -168,7 +182,7 @@ Si le workflow de publication échoue après la fusion, le code est déjà inté
 1. **Relancer le workflow** (*Re-run jobs* ou `workflow_dispatch`) si la cause est temporaire (réseau, registre). La publication repart du même SHA.
 2. **Corriger en avant** : nouvelle PR avec le correctif (les branches étant protégées, c'est le chemin normal).
 3. **Revert** : PR qui annule le commit fautif si le correctif prend du temps.
-4. Le tag de version et la release ne sont créés **qu'après** une publication réussie, pour ne jamais avoir une release sans image.
+4. L'image `:sha` est publiée, puis **scannée avant la release** : si Trivy trouve un CVE critique, ni tag Git, ni changelog, ni GitHub Release, ni tag `X.Y.Z` ne sont créés. Seul le retag final (`X.Y.Z`, `latest`) peut échouer après la release ; il se relance sans reconstruire.
 5. L'échec déclenche une notification et une issue. Tant que `develop` ou `main` est en échec, aucune nouvelle fusion n'est faite avant correction.
 
 ## 4. Environnements et stratégie de déploiement
@@ -232,8 +246,8 @@ Mise en œuvre par environnement :
 | Environnement | Déclencheur | Tag déployé | Validation |
 |---------------|-------------|-------------|-----------|
 | Développement | Aucun déploiement : lancement local | Tag choisi ou build local | Aucune |
-| Test | PR (runner jetable), puis fusion sur `develop` | SHA du commit (aussi tagué `X.Y.Z-SNAPSHOT`) | Automatique ; tests e2e nocturnes |
-| Pré-production | Fusion sur `main` | SHA du commit (aussi tagué `vX.Y.Z`) | Automatique ; tests e2e nocturnes |
+| Test | PR (runner jetable), puis fusion sur `develop` | SHA du commit (aussi tagué `SNAPSHOT`) | Automatique ; tests e2e nocturnes |
+| Pré-production | Fusion sur `main` | SHA du commit (aussi tagué `X.Y.Z`) | Automatique ; tests e2e nocturnes |
 | Production | Lancement manuel du workflow de déploiement | **Le même SHA que la pré-production**, sans reconstruction | Approbation d'un relecteur via GitHub Environments |
 
 - Le déploiement est réalisé par un workflow `deploy.yml`, qui se connecte à la machine cible (SSH) et exécute `docker compose pull` puis `docker compose up -d` avec le tag d'image voulu. La connexion utilise des secrets propres à l'environnement.

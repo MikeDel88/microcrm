@@ -1,0 +1,6 @@
+# IDE
+.idea/
+*.iml
+
+# Outillage de release (semantic-release)
+node_modules/
