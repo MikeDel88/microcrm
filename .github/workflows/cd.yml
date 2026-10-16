@@ -173,3 +173,29 @@ jobs:
             -t "${{ steps.image.outputs.name }}:${{ needs.release.outputs.version }}" \
             -t "${{ steps.image.outputs.name }}:latest" \
             "${{ steps.image.outputs.name }}:${{ github.sha }}"
+
+
+  # En cas d'échec de la CD, on crée une issue.
+  notify-failure:
+    if: failure()
+    needs: [build, scan, release, promote]
+    runs-on: ubuntu-22.04
+    permissions:
+      issues: write
+    steps:
+      - name: Créer ou commenter l'issue (une par branche, sans doublon)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          LABEL="publish-failure"
+          TITLE="Échec de publication – $GITHUB_REF_NAME"
+          gh label create "$LABEL" --color B60205 --description "Échec du workflow de publication" 2>/dev/null || true
+          EXISTING=$(gh issue list --state open --label "$LABEL" --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          BODY="Le workflow de publication a échoué sur \`$GITHUB_REF_NAME\` (commit $GITHUB_SHA). Exécution : $RUN_URL"
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY"
+          fi
