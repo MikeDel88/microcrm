@@ -17,7 +17,7 @@ L'application MicroCRM est une implémentation simplifiée d'un ["CRM" (Customer
 
 Ce [monorepo](https://en.wikipedia.org/wiki/Monorepo) contient les 2 composantes du projet "MicroCRM":
 
-- La partie serveur (ou "backend"), en Java SpringBoot 3;
+- La partie serveur (ou "backend"), en Java Spring Boot 4 (Java 17, Gradle 8.14);
 - La partie cliente (ou "frontend"), en Angular 17.
 
 ### Démarrer avec les sources
@@ -49,7 +49,7 @@ Ce [monorepo](https://en.wikipedia.org/wiki/Monorepo) contient les 2 composantes
 3. Démarrer le service:
 
    ```shell
-   java -jar build/libs/microcrm-0.0.1-SNAPSHOT.jar
+   java -jar build/libs/microcrm.jar
    ```
 
 Puis ouvrir l'URL http://localhost:8080 dans votre navigateur.
@@ -147,3 +147,7 @@ docker compose up --build
 ```
 
 L'application sera disponible sur https://localhost et l'API sur http://localhost:8080. Par défaut, le back utilise le profil `dev` ; pour le profil `test` : `docker compose -f compose.yml -f compose.test.yml up --build`.
+
+## CI/CD
+
+Pipeline GitHub Actions (`.github/workflows/ci.yml` et `cd.yml`), images publiées dans GHCR. Voir la [documentation](documentation/CICD-synthese.md) et, pour lancer chaque étape, [documentation/03-lancer-chaque-etape.md](documentation/03-lancer-chaque-etape.md).
