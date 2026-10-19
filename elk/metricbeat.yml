@@ -20,6 +20,13 @@ metricbeat.modules:
     hosts: ["unix:///var/run/docker.sock"]
     period: 10s
 
+  # Métriques applicatives du back (profil dev) : JVM, HTTP, pool JDBC
+  - module: prometheus
+    metricsets: [collector]
+    hosts: ["host.docker.internal:8080"]
+    metrics_path: /actuator/prometheus
+    period: 10s
+
 processors:
   - add_host_metadata: ~
   - add_docker_metadata: ~

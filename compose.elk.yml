@@ -1,4 +1,6 @@
 # Stack ELK : docker compose --env-file .env.elk -f compose.elk.yml up -d
+name: microcrm-elk
+
 volumes:
   certs:
   esdata01:
@@ -124,11 +126,15 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: ["--strict.perms=false"]
 
   filebeat01:
     depends_on:
       es01:
+        condition: service_healthy
+      kibana:
         condition: service_healthy
     image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
     user: root

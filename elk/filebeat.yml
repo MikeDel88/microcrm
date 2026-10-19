@@ -15,7 +15,15 @@ filebeat.inputs:
           target: ""
           overwrite_keys: true
           add_error_key: false
+      # Ne garder que les conteneurs de l'application (pas ceux de la stack ELK)
+      - drop_event:
+          when:
+            not:
+              regexp:
+                container.name: "^microcrm-(back|front)-"
 
+
+setup.dashboards.enabled: true
 
 setup.kibana:
   host: "http://kibana:5601"
