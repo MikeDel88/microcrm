@@ -1,0 +1,3 @@
+# Faux positif : "-u elastic:$${ELASTIC_PASSWORD}" référence une variable d'environnement
+# (échappement Compose), le mot de passe n'est pas dans le dépôt.
+9c0afedd8cdb431cf4099b9d5e4ced222b1db884:compose.elk.yml:curl-auth-user:35
