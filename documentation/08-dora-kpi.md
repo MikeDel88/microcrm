@@ -15,9 +15,11 @@ Lecture : aucun incident de production n'est enregistré (l'issue `publish-failu
 
 Limites : le MTTR est un proxy (pas d'incident de production réel) ; la fréquence de déploiement n'a qu'une journée d'historique.
 
+Évolution du pipeline depuis ce relevé : (1) la CI ne tourne plus sur les push de branche mais uniquement sur PR, ce qui supprime les runs en double ; le taux de réussite et le MTTR de la CI, calculés sur les anciens runs push + PR, sont à recalculer. (2) La CD scanne l'image avant de la pousser (build local, Trivy, puis push) : les durées de CD ci-dessous précèdent ce changement et seront un peu plus longues (scan, et second build servi par le cache).
+
 ## 2. KPI opérationnels
 
-### Pipeline (mesurés sur 6 runs CI réussis de PR)
+### Pipeline (mesurés sur 6 runs CI réussis de PR, avant l'ajout du scan Trivy dans le job `build` de la CD)
 
 | KPI | Valeur actuelle (médiane) | Objectif |
 |---|---|---|
@@ -49,7 +51,7 @@ Source : analyses des pull requests.
 
 Le quality gate par défaut ne porte que sur le **nouveau code** ; la couverture globale de 36,9 % n'est donc pas bloquante aujourd'hui.
 
-Constat : la CI n'analyse que les branches `feature/**`, `fix/**` et les PR, donc l'analyse Sonar de `main` datait du 13/10 (commit d'init, avant la config de couverture) et affichait des chiffres périmés (21 bugs, 6 vulnérabilités, pas de couverture, quality gate `NONE`). À corriger si besoin : faire analyser `main` par un workflow.
+Constat : la CI n'analyse que les PR (les push sur `feature/**` et `fix/**` ne la déclenchent plus), donc l'analyse Sonar de `main` datait du 13/10 (commit d'init, avant la config de couverture) et affichait des chiffres périmés (21 bugs, 6 vulnérabilités, pas de couverture, quality gate `NONE`). À corriger si besoin : faire analyser `main` par un workflow.
 
 ### Exploitation (logs et supervision, via ELK)
 

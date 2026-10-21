@@ -1,12 +1,27 @@
+# CI : validation d'une pull request avant fusion.
+#
+# Déclencheurs : PR vers develop ou main, ou lancement manuel. Pas de déclencheur sur
+# push de branche (feature/**, fix/**) : cela doublerait chaque run quand une PR est ouverte.
+# Pour un retour avant revue, ouvrir une PR en brouillon.
+#
+# Les jobs sont indépendants et tournent en parallèle, sauf sonar (réutilise les rapports des tests).
+#   Tests      : back-tests, front-tests
+#   Build      : build
+#   Qualité    : secrets (Gitleaks), linter-back, linter-front, sonar
+#   Sécurité   : codeql, dependency-review, npm-audit (PR uniquement)
+#   Image      : buildx (build des images, test de fumée, scan Trivy)
+#   Validation : ci-ok, seul check à rendre obligatoire dans la protection de branche
+#
+# La CD (cd.yml) n'est pas chaînée à ce workflow : la protection de branche impose
+# que ci-ok soit vert avant toute fusion sur develop ou main.
 name: CI
 
 on:
-  push:
-    branches: ["feature/**", "fix/**"]
   pull_request:
     branches: [develop, main]
   workflow_dispatch:
 
+# Un nouveau push sur la PR annule le run précédent encore en cours
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -20,7 +35,7 @@ env:
   JAVA_VERSION: 17
 
 jobs:
-  # TESTS
+  # TESTS : les rapports sont publiés en artefacts, sonar les récupère pour la couverture
   back-tests:
     runs-on: ubuntu-22.04
     defaults:
@@ -65,7 +80,7 @@ jobs:
           name: front-coverage
           path: front/coverage
 
-  # BUILD
+  # BUILD : compilation back et front, sans les tests (déjà faits ci-dessus)
   build:
     runs-on: ubuntu-22.04
     steps:
@@ -94,6 +109,7 @@ jobs:
 
 
   # QUALITE
+  # Détection de secrets sur tout l'historique (fetch-depth 0)
   secrets:
     runs-on: ubuntu-22.04
     steps:
@@ -143,6 +159,7 @@ jobs:
         with:
           name: front-linter
           path: front/eslint-report.html
+  # Analyse SonarQube Cloud : attend les tests pour importer les rapports de couverture
   sonar:
     needs: [back-tests, front-tests]
     runs-on: ubuntu-22.04
@@ -163,6 +180,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   # SECURITY IN PULL_REQUEST
+  # CodeQL : analyse statique (SAST) du Java/Kotlin (build manuel) et du JS/TS (sans build)
   codeql:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
@@ -192,6 +210,7 @@ jobs:
           chmod +x gradlew
           ./gradlew build -x test
       - uses: github/codeql-action/analyze@v4
+  # Dépendances ajoutées par la PR : échec à partir de la sévérité high
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
@@ -200,6 +219,8 @@ jobs:
       - uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
+  # Informatif : --audit-level=none ne fait jamais échouer le job (dépendances front à migrer).
+  # À passer à high une fois les vulnérabilités existantes corrigées.
   npm-audit:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
@@ -213,7 +234,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - run: npm audit --audit-level=none --json
 
-  # BUILD IMAGE DOCKER
+  # BUILD IMAGE DOCKER : construit les images via compose, vérifie qu'elles démarrent
+  # (--wait attend les healthchecks = test de fumée), puis scanne avec Trivy (vers develop et main, comme cd.yml).
+  # Ces images servent au test ; celles publiées sont construites et scannées par cd.yml.
   buildx:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-22.04
@@ -228,7 +251,6 @@ jobs:
         if: failure()
         run: docker compose -f compose.yml -f compose.test.yml logs
       - name: Scan Trivy (back)
-        if: github.base_ref == 'main'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: microcrm-back
@@ -236,7 +258,6 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
       - name: Scan Trivy (front)
-        if: github.base_ref == 'main'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: microcrm-front
@@ -247,7 +268,9 @@ jobs:
         if: always()
         run: docker compose -f compose.yml -f compose.test.yml down -v || true
 
-  # CI VALIDATION
+  # CI VALIDATION : job agrégé, c'est lui qu'exige la protection de branche.
+  # if: always() pour s'exécuter même si un job a échoué. Il échoue si un job est en
+  # échec ou annulé ; un job ignoré (skipped) n'est pas un échec.
   ci-ok:
     if: always()
     needs:

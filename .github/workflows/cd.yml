@@ -1,6 +1,20 @@
+# CD : publication des images Docker dans GHCR, après fusion d'une PR.
+#
+# Enchaînement :
+#   build (back + front, en parallèle) : construction locale -> scan Trivy -> push si sain
+#     -> release  (main uniquement) : semantic-release calcule la version, tag, CHANGELOG, GitHub Release
+#       -> promote (si une version est créée) : retag de l'image <sha> en <X.Y.Z> et latest, sans reconstruire
+#   notify-failure : ouvre ou commente une issue si un des jobs échoue
+#
+# Cette CD n'est pas chaînée à ci.yml : la protection de branche sur develop et main
+# (PR obligatoire, check ci-ok requis) garantit que le code fusionné a déjà passé la CI.
+#
+# Lancement manuel (workflow_dispatch) : build + scan uniquement, rien n'est poussé
+# (push conditionné à l'événement push) et la release n'est pas lancée.
 name: CD
 
 on:
+  # Déclenché par la fusion d'une PR sur develop (image d'intégration) ou main (livraison)
   push:
     branches: [develop, main]
   workflow_dispatch:
@@ -13,17 +27,20 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  # BUILD : une image par service (target du Dockerfile), taguée par SHA
+  # BUILD : une image par service (target du Dockerfile), scannée avant push, taguée par SHA.
+  # Une image qui échoue au scan Trivy n'est jamais poussée dans le registre.
   build:
     runs-on: ubuntu-22.04
+    # Pas d'annulation : deux builds d'une même branche ne doivent pas s'écraser, ils s'enchaînent
     concurrency:
       group: cd-build-${{ github.ref }}-${{ matrix.service }}
       cancel-in-progress: false
     permissions:
       contents: read
-      packages: write
-      id-token: write
+      packages: write       # push dans GHCR
+      id-token: write       # attestation de provenance
       attestations: write
+    # Un job par image ; fail-fast désactivé pour voir l'état de chaque service
     strategy:
       fail-fast: false
       matrix:
@@ -56,7 +73,31 @@ jobs:
             type=ref,event=branch
             type=raw,value=SNAPSHOT,enable=${{ github.ref == 'refs/heads/develop' }}
 
-      - name: Build and push
+      # 1. Construction locale (chargée dans le démon Docker du runner, rien n'est publié)
+      - name: Build image (local, sans push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ${{ matrix.service }}
+          push: false
+          load: true
+          tags: microcrm-${{ matrix.service }}:scan
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      # 2. Scan de l'image locale : une CVE critique corrigeable fait échouer le job
+      #    (exit-code 1), donc l'étape de push ci-dessous n'est jamais atteinte
+      - name: Scan Trivy (avant push)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: microcrm-${{ matrix.service }}:scan
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      # 3. Push avec les tags <sha>, <branche> (et SNAPSHOT sur develop).
+      #    Le cache gha rend cette seconde construction quasi instantanée.
+      - name: Push (image saine uniquement)
         id: push
         uses: docker/build-push-action@v6
         with:
@@ -76,41 +117,14 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
-  # SCAN : l'image :sha doit être saine avant toute release (main uniquement)
-  scan:
+  # RELEASE : version calculée par semantic-release (main uniquement).
+  # Analyse les commits conventionnels (feat/fix/BREAKING CHANGE) ; sans commit éligible,
+  # aucune version n'est créée et le job promote est ignoré. Config : .releaserc.json
+  release:
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-22.04
-    permissions:
-      contents: read
-      packages: read
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [back, front]
-    steps:
-      - name: Image name
-        id: image
-        run: |
-          IMAGE=$(echo "${REGISTRY}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
-          echo "name=${IMAGE}" >> "$GITHUB_OUTPUT"
-
-      - name: Scan Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
-        env:
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          image-ref: ${{ steps.image.outputs.name }}:${{ github.sha }}
-          severity: CRITICAL
-          exit-code: '1'
-          ignore-unfixed: true
-
-  # RELEASE : version calculée par semantic-release (main uniquement)
-  release:
-    needs: scan
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-22.04
+    # Une seule release à la fois, jamais annulée en cours de route
     concurrency:
       group: release-${{ github.ref }}
       cancel-in-progress: false
@@ -118,9 +132,13 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+    # Version créée (vide si aucun commit n'en justifie une), lue par le job promote.
+    # Elle est écrite dans $GITHUB_OUTPUT par le plugin exec de .releaserc.json
     outputs:
       version: ${{ steps.release.outputs.version }}
     steps:
+      # Historique complet (tags et commits) pour calculer la version.
+      # RELEASE_TOKEN (PAT) : permet de pousser le changelog et le tag sur main protégée.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -135,13 +153,16 @@ jobs:
       - name: Install release tooling
         run: npm ci
 
+      # Le commit de changelog "chore(release) [skip ci]" ne relance pas la CD
       - name: Semantic release
         id: release
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
-  # PROMOTION : retag de l'image :sha en :X.Y.Z et :latest (sans rebuild)
+  # PROMOTION : retag de l'image :sha en :X.Y.Z et :latest (sans rebuild).
+  # C'est l'image déjà construite et scannée par le job build qui est livrée,
+  # pas une nouvelle construction : ce qui est testé est ce qui est publié.
   promote:
     needs: release
     if: needs.release.outputs.version != ''
@@ -175,10 +196,12 @@ jobs:
             "${{ steps.image.outputs.name }}:${{ github.sha }}"
 
 
-  # En cas d'échec de la CD, on crée une issue.
+  # En cas d'échec de la CD, on crée une issue (label publish-failure).
+  # Une seule issue ouverte par branche : les échecs suivants la commentent.
+  # Elle n'est pas refermée automatiquement.
   notify-failure:
     if: failure()
-    needs: [build, scan, release, promote]
+    needs: [build, release, promote]
     runs-on: ubuntu-22.04
     permissions:
       issues: write
