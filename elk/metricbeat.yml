@@ -1,0 +1,38 @@
+metricbeat.modules:
+  - module: elasticsearch
+    xpack.enabled: true
+    period: 10s
+    hosts: ["https://es01:9200"]
+    username: elastic
+    password: ${ELASTIC_PASSWORD}
+    ssl.certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+
+  - module: kibana
+    metricsets: [stats]
+    period: 10s
+    hosts: ["http://kibana:5601"]
+    username: elastic
+    password: ${ELASTIC_PASSWORD}
+    xpack.enabled: true
+
+  - module: docker
+    metricsets: [container, cpu, diskio, healthcheck, info, memory, network]
+    hosts: ["unix:///var/run/docker.sock"]
+    period: 10s
+
+  # Métriques applicatives du back (profil dev) : JVM, HTTP, pool JDBC
+  - module: prometheus
+    metricsets: [collector]
+    hosts: ["host.docker.internal:8080"]
+    metrics_path: /actuator/prometheus
+    period: 10s
+
+processors:
+  - add_host_metadata: ~
+  - add_docker_metadata: ~
+
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: elastic
+  password: ${ELASTIC_PASSWORD}
+  ssl.certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]

@@ -11,16 +11,17 @@ author: "Michael Delamarre"
 
 | Étape | Déclencheur | Contrôles / actions |
 |-------|-------------|---------------------|
-| CI sur branche | Push `feature/**`, `fix/**` | Tests, build, lint, SonarQube, Gitleaks |
-| CI sur PR | PR vers `develop` / `main` | Idem + CodeQL, Dependency Review, `npm audit`, build des images et test de fumée ; Trivy vers `main` ; `ci-ok` requis |
-| Publication `develop` | Fusion sur `develop` | Images GHCR `<sha>`, `develop`, `SNAPSHOT` |
-| Release `main` | Fusion sur `main` | Images `<sha>` → scan Trivy → semantic-release (tag, changelog, GitHub Release) → retag `X.Y.Z` et `latest` |
+| CI sur PR | PR vers `develop` / `main` (pas de CI sur simple push de branche) | Tests, build, lint, SonarQube, Gitleaks, CodeQL, Dependency Review, `npm audit`, build des images et test de fumée ; Trivy ; `ci-ok` requis |
+| Publication `develop` | Fusion sur `develop` | Build, scan Trivy, puis push GHCR `<sha>`, `develop`, `SNAPSHOT` |
+| Release `main` | Fusion sur `main` | Build + scan Trivy avant push `<sha>` → semantic-release (tag, changelog, GitHub Release) → retag `X.Y.Z` et `latest` |
+| Analyse nocturne | Chaque nuit (`nightly.yml`) | SBOM CycloneDX et rapport de vulnérabilités des images `:develop` et `:main`, `npm audit`, dépendances Gradle ; rapports en artefacts |
 | Échec de publication | Un job de `cd.yml` en échec | Issue créée ou commentée |
 
 Flux : `feature/fix → develop → main`, sans branches `release/*`. La pipeline livre des **images versionnées** ; le déploiement n'est pas automatisé.
 
 ## Points clés
 
+- **Scan avant publication** : l'image est construite et scannée localement, puis poussée seulement si Trivy est vert.
 - **Une seule construction** : l'image testée (`<sha>`) est promue en `X.Y.Z`, sans reconstruction.
 - **Version automatique** d'après les commits conventionnels (`fix:` correctif, `feat:` mineure, `feat!:` majeure).
 - **Secrets** : `SONAR_TOKEN` (analyse), `RELEASE_TOKEN` (PAT pour pousser changelog et tag sur `main` protégée).
