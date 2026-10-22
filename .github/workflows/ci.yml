@@ -175,9 +175,20 @@ jobs:
         with:
           name: front-coverage
           path: front/coverage
-      - uses: SonarSource/sonarqube-scan-action@v6
+      # Deux projets SonarQube Cloud : chaque analyse lit le sonar-project.properties de son dossier
+      - name: Sonar Back
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          projectBaseDir: back
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_BACK }}
+      - name: Sonar Front
+        if: ${{ !cancelled() }}
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          projectBaseDir: front
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_FRONT }}
 
   # SECURITY IN PULL_REQUEST
   # CodeQL : analyse statique (SAST) du Java/Kotlin (build manuel) et du JS/TS (sans build)
@@ -235,7 +246,7 @@ jobs:
       - run: npm audit --audit-level=none --json
 
   # BUILD IMAGE DOCKER : construit les images via compose, vérifie qu'elles démarrent
-  # (--wait attend les healthchecks = test de fumée), puis scanne avec Trivy (vers develop et main, comme cd.yml).
+  # puis scanne avec Trivy (vers develop et main, comme cd.yml).
   # Ces images servent au test ; celles publiées sont construites et scannées par cd.yml.
   buildx:
     if: github.event_name == 'pull_request'
@@ -246,10 +257,10 @@ jobs:
       - name: Build image docker (test)
         env:
           COMPOSE_PROJECT_NAME: microcrm
-        run: docker compose -f compose.yml -f compose.test.yml up -d --build --wait --wait-timeout 120
+        run: docker compose up -d --build
       - name: Cas d'echec
         if: failure()
-        run: docker compose -f compose.yml -f compose.test.yml logs
+        run: docker compose logs
       - name: Scan Trivy (back)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -266,7 +277,7 @@ jobs:
           ignore-unfixed: true
       - name: Nettoyage
         if: always()
-        run: docker compose -f compose.yml -f compose.test.yml down -v || true
+        run: docker compose down -v || true
 
   # CI VALIDATION : job agrégé, c'est lui qu'exige la protection de branche.
   # if: always() pour s'exécuter même si un job a échoué. Il échoue si un job est en

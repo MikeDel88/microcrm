@@ -81,7 +81,27 @@ curl -s "https://sonarcloud.io/api/qualitygates/project_status?projectKey=MikeDe
 
 Calcul : durée d'un run = `updated_at - run_started_at` ; taux de réussite = runs `success` / runs totaux du workflow `CI` ; MTTR = temps entre un run `failure` et le premier `success` suivant.
 
-## 4. Suite recommandée
+## 4. Automatiser la mesure (fichiers prêts à l'emploi)
+
+Quatre fichiers sont préparés dans `misc/ci/`. Ils ne sont **pas actifs** : ils ne se trouvent pas dans `.github/workflows/`, et aucun n'a encore été exécuté.
+
+| Métrique | Fichier | Fréquence | Ce qui est mesuré |
+|---|---|---|---|
+| Lead time | `misc/ci/lead-time-job.yml` | À chaque release (job à ajouter à `cd.yml`) | Pour chaque commit livré dans la version, délai entre la date du commit et la fin de `promote` ; médiane en résumé du run, délais en artefact `lead-time` |
+| Fréquence de déploiement | `misc/ci/deployment-frequency-weekly.yml` | Chaque lundi (06:00 UTC) | Sur 7 jours : runs `cd.yml` réussis sur `main` et `develop`, releases publiées ; artefact `deployment-frequency` |
+| MTTR | `misc/ci/mttr-weekly.yml` | Chaque lundi | Sur 30 jours : durée entre un run `cd.yml` en échec et le premier succès suivant, par branche ; artefact `mttr` |
+| Taux d'échec des changements | `misc/ci/cfr-weekly.yml` | Chaque lundi | Sur 30 jours : taux d'échecs de pipeline et taux d'échecs après publication (`release` ou `promote`) ; artefact `cfr` |
+
+**Activation** : le job de lead time se copie sous `jobs:` de `cd.yml` (il suppose les jobs `release` et `promote`). Les trois autres sont des workflows complets à copier dans `.github/workflows/` puis à fusionner sur `main`, car un workflow planifié ne s'exécute que depuis la branche par défaut. Aucun ne demande de secret. Tous peuvent aussi être lancés à la main (*Run workflow*).
+
+Choix de définition à citer avec les chiffres :
+- **Livraison** : la « mise en production » s'arrête à la publication dans GHCR, il n'y a pas de déploiement automatisé. Ce sont des mesures de **publication**.
+- **Taux d'échec** : un échec de `build` ou de scan bloque l'image avant publication, donc il ne compte pas comme incident au sens DORA. Le taux « après publication » est le plus proche de la définition DORA.
+- **Lead time** : avec un squash ou un rebase, la date du commit peut ne pas refléter le début du travail ; la date d'ouverture de la PR est alors plus fiable (méthode du § 1).
+
+Ces fichiers n'ont pas été testés : le premier run manuel de chacun sert de vérification. Sans échec de CD sur la période, le MTTR et le taux d'échec n'ont pas de valeur (« – »), ce qui n'est pas une erreur.
+
+## 5. Suite recommandée
 1. Après le prochain merge sur `main`, vérifier que Sonar affiche la couverture et le quality gate sur la branche principale.
 2. Remonter la couverture (36,9 %) : tests des composants front et des contrôleurs back.
 3. Rejouer ce relevé chaque semaine et suivre l'évolution plutôt que les valeurs absolues.

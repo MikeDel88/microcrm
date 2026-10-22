@@ -1,0 +1,65 @@
+# Workflow DORA "fréquence de déploiement" hebdomadaire (NON actif : ce fichier n'est pas
+# dans .github/workflows).
+#
+# Utilisation : copier ce fichier dans .github/workflows/ puis le fusionner sur main
+# (un workflow planifié ne s'exécute que depuis la branche par défaut).
+#
+# Ce qui est compté sur les 7 derniers jours (cron en UTC, chaque lundi) :
+#   - runs réussis de cd.yml sur main       : images publiées (avec ou sans nouvelle version)
+#   - runs réussis de cd.yml sur develop    : images d'intégration (SNAPSHOT)
+#   - releases publiées                     : versions X.Y.Z réellement livrées
+# Résultat : tableau dans le résumé du run + JSON en artefact `deployment-frequency`.
+#
+# Limites : la "mise en production" s'arrête à la publication dans GHCR (pas de déploiement
+# automatisé) ; un run relancé puis réussi compte une fois (seuls les runs `success` sont comptés).
+name: Deployment frequency
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deployment-frequency:
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Comptage sur 7 jours
+        run: |
+          SINCE=$(date -u -d '7 days ago' +%Y-%m-%d)
+          UNTIL=$(date -u +%Y-%m-%d)
+
+          count_runs() {
+            gh api -X GET "repos/$REPO/actions/workflows/cd.yml/runs" \
+              -f branch="$1" -f event=push -f status=success -f created=">=$SINCE" -f per_page=1 \
+              --jq '.total_count'
+          }
+
+          MAIN=$(count_runs main)
+          DEVELOP=$(count_runs develop)
+          RELEASES=$(gh api "repos/$REPO/releases?per_page=100" \
+            --jq "[.[] | select(.draft == false and .published_at >= \"${SINCE}T00:00:00Z\")] | length")
+
+          {
+            echo "## Fréquence de déploiement ($SINCE → $UNTIL)"
+            echo
+            echo "| Mesure | Nombre | Par jour |"
+            echo "|---|---|---|"
+            echo "| CD réussies sur main (images publiées) | $MAIN | $(awk -v n="$MAIN" 'BEGIN{printf "%.2f", n/7}') |"
+            echo "| CD réussies sur develop (SNAPSHOT) | $DEVELOP | $(awk -v n="$DEVELOP" 'BEGIN{printf "%.2f", n/7}') |"
+            echo "| Versions publiées (X.Y.Z) | $RELEASES | $(awk -v n="$RELEASES" 'BEGIN{printf "%.2f", n/7}') |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          printf '{"since":"%s","until":"%s","cd_main":%s,"cd_develop":%s,"releases":%s}\n' \
+            "$SINCE" "$UNTIL" "$MAIN" "$DEVELOP" "$RELEASES" > deployment-frequency.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deployment-frequency
+          path: deployment-frequency.json
