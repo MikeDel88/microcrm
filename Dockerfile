@@ -36,8 +36,6 @@ EXPOSE 80
 EXPOSE 443
 
 CMD ["caddy", "run", "--config", "/app/Caddyfile"]
-HEALTHCHECK --interval=10s --start-period=10s \
-  CMD nc -z localhost 80 || exit 1
 
 FROM eclipse-temurin:17-jre-alpine AS back
 
@@ -51,8 +49,6 @@ WORKDIR /app
 EXPOSE 8080
 
 CMD ["java", "-jar", "/app/back/microcrm.jar"]
-HEALTHCHECK --interval=10s --start-period=30s \
-  CMD wget -q -O /dev/null http://localhost:8080/organizations || exit 1
 
 
 
