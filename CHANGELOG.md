@@ -1,3 +1,18 @@
+# [1.1.0](https://github.com/MikeDel88/microcrm/compare/v1.0.0...v1.1.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* config filebeat to collect logs. ([4643994](https://github.com/MikeDel88/microcrm/commit/464399416cd1bf7e096d3ec6283e189f9f3b2fbf))
+* **sonar:** use lowercase project keys and wait for quality gate ([cc3f228](https://github.com/MikeDel88/microcrm/commit/cc3f228a0bde03fc532f0743a94883275d49c47c))
+* update gitleaksignore to exclude curl-auth-user from analysis ([cfecfaa](https://github.com/MikeDel88/microcrm/commit/cfecfaa5f1bcb63cbcac4d50c66b9f84763084a8))
+
+
+### Features
+
+* add ELK with config for each element. ([9c0afed](https://github.com/MikeDel88/microcrm/commit/9c0afedd8cdb431cf4099b9d5e4ced222b1db884))
+* update ci and cd and documentation ([4669d61](https://github.com/MikeDel88/microcrm/commit/4669d615dc752e2a7ca78a2917949196ffef26e2))
+
 # 1.0.0 (2026-10-16)
 
 
