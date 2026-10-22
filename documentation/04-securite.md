@@ -4,15 +4,17 @@
 
 | Contrôle | Outil | Quand | Bloquant |
 |----------|-------|-------|----------|
-| Secrets | Gitleaks | Push et PR | Oui |
-| Qualité et sécurité du code | SonarQube Cloud (quality gate) | Push et PR | Selon le gate |
+| Secrets | Gitleaks | PR | Oui |
+| Qualité et sécurité du code | SonarQube Cloud (quality gate) | PR | Selon le gate |
 | SAST | CodeQL (Java/Kotlin, JavaScript/TypeScript) | PR | Selon la configuration GitHub |
 | Dépendances et licences | Dependency Review | PR | Oui, à partir de *high* |
 | Dépendances front | `npm audit` | PR | Non (`--audit-level=none`, informatif) |
-| Image | Trivy, sévérité **CRITICAL**, `ignore-unfixed` | PR vers `main` (sur images compose) ; `cd.yml` sur `main` avant release | Oui |
+| Image | Trivy, sévérité **CRITICAL**, `ignore-unfixed` | PR vers `develop` et `main` (sur images compose) ; `cd.yml` sur `develop` et `main`, **avant le push** de l'image | Oui |
 | Provenance | Attestation GitHub des images publiées | Fusion sur `develop` / `main` | – |
+| SBOM | Trivy (CycloneDX) sur les images `:develop` et `:main` | Chaque nuit (`nightly.yml`) | Non (artefact) |
+| Vulnérabilités dans le temps | Trivy (rapport complet, contrôle CRITICAL), `npm audit`, arbre Gradle | Chaque nuit (`nightly.yml`) | CRITICAL corrigeable : issue `nightly-failure` |
 
-Dependabot, hadolint, SBOM et scans planifiés ne sont pas en place (voir [06](06-evolutions.md)).
+Dependabot, hadolint et la signature des images (cosign) ne sont pas en place (voir [06](06-evolutions.md)).
 
 ## 2. Secrets
 
@@ -57,7 +59,7 @@ Version actuelle : Spring Boot **4.1.1**, Gradle **8.14.5**.
 
 ## 5. Traiter une vulnérabilité
 
-1. Le job (`scan`, Dependency Review, Sonar) échoue : lire le rapport.
+1. Le contrôle (étape de scan Trivy du job `build`, Dependency Review, Sonar) échoue : lire le rapport.
 2. Mettre à jour la dépendance ou l'image de base (ou surcharger la version dans `build.gradle` en attendant Spring Boot).
 3. Si aucun correctif n'existe, Trivy l'ignore déjà (`ignore-unfixed`).
-4. Relancer ; la fusion ou la release reprend une fois le job vert.
+4. Relancer ; la fusion ou la release reprend une fois le contrôle vert. En CD, une image qui échoue au scan n'est jamais poussée dans GHCR.

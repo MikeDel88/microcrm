@@ -1,0 +1,154 @@
+# NIGHTLY : analyse nocturne des dépendances et SBOM, sans commit ni PR.
+#
+# Pourquoi : une CVE peut être publiée après la fusion d'un code resté inchangé ; la CI
+# (qui ne tourne que sur PR) ne la verrait pas. Cette analyse vérifie chaque nuit les images
+# déjà publiées dans GHCR (:develop et :main) et conserve les rapports en artefacts.
+#
+# Jobs :
+#   images-sbom : par image (back, front) et par branche : SBOM CycloneDX + rapport de
+#                 vulnérabilités (toutes sévérités, informatif) + contrôle bloquant sur CRITICAL
+#   deps-front  : npm audit (JSON, informatif)
+#   deps-back   : arbre de dépendances Gradle (runtimeClasspath)
+#   notify-failure : ouvre ou commente une issue si une CVE critique corrigeable est détectée
+#
+# Un workflow planifié ne s'exécute que depuis la branche par défaut (main) : ce fichier doit
+# y être fusionné. Les horaires cron sont en UTC.
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 20
+  JAVA_DISTRIBUTION: temurin
+  JAVA_VERSION: 17
+  REGISTRY: ghcr.io
+
+jobs:
+  # SBOM + vulnérabilités des images publiées
+  images-sbom:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [back, front]
+        tag: [develop, main]
+    env:
+      # Les images de GHCR sont lues avec le jeton du workflow
+      TRIVY_USERNAME: ${{ github.actor }}
+      TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Image name (minuscules, requis par GHCR)
+        id: image
+        run: |
+          IMAGE=$(echo "${REGISTRY}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}:${{ matrix.tag }}" | tr '[:upper:]' '[:lower:]')
+          echo "ref=${IMAGE}" >> "$GITHUB_OUTPUT"
+          mkdir -p reports
+
+      # SBOM : inventaire des composants (paquets système, JAR, modules npm) de l'image
+      - name: SBOM CycloneDX
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          format: cyclonedx
+          output: reports/sbom-${{ matrix.service }}-${{ matrix.tag }}.cdx.json
+
+      # Rapport complet, toutes sévérités : pour analyse, ne fait pas échouer le job
+      - name: Rapport de vulnérabilités (toutes sévérités)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          format: json
+          output: reports/vulns-${{ matrix.service }}-${{ matrix.tag }}.json
+          exit-code: '0'
+
+      # Contrôle bloquant : mêmes réglages que la CI et la CD
+      - name: Contrôle CRITICAL
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.image.outputs.ref }}
+          severity: CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: nightly-${{ matrix.service }}-${{ matrix.tag }}
+          path: reports
+          if-no-files-found: ignore
+
+  # Dépendances front : rapport npm audit conservé (informatif, comme en CI)
+  deps-front:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: npm audit (JSON)
+        run: npm audit --audit-level=none --json > npm-audit.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: nightly-npm-audit
+          path: front/npm-audit.json
+
+  # Dépendances back : arbre résolu, à rapprocher du SBOM de l'image
+  deps-back:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: back
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+      - run: chmod +x gradlew
+      - name: Arbre de dépendances (runtimeClasspath)
+        run: ./gradlew dependencies --configuration runtimeClasspath > gradle-dependencies.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: nightly-gradle-dependencies
+          path: back/gradle-dependencies.txt
+
+  # En cas d'échec de l'analyse nocturne, on crée une issue (label nightly-failure).
+  # Une seule issue ouverte : les échecs suivants la commentent. Elle n'est pas refermée automatiquement.
+  notify-failure:
+    if: failure()
+    needs: [images-sbom, deps-front, deps-back]
+    runs-on: ubuntu-22.04
+    permissions:
+      issues: write
+    steps:
+      - name: Créer ou commenter l'issue (sans doublon)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          LABEL="nightly-failure"
+          TITLE="Échec de l'analyse nocturne"
+          gh label create "$LABEL" --color D93F0B --description "Échec de l'analyse nocturne (dépendances, SBOM)" 2>/dev/null || true
+          EXISTING=$(gh issue list --state open --label "$LABEL" --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          BODY="L'analyse nocturne a échoué (commit $GITHUB_SHA) : vulnérabilité critique corrigeable ou erreur de job. Rapports en artefacts de l'exécution : $RUN_URL"
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --label "$LABEL" --body "$BODY"
+          fi

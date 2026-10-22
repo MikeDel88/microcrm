@@ -1,0 +1,37 @@
+filebeat.inputs:
+  - type: filestream
+    id: custom-logs
+    paths:
+      - /usr/share/filebeat/ingest_data/*.log
+
+  - type: container
+    id: docker-containers
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    processors:
+      - add_docker_metadata: ~
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+          add_error_key: false
+      # Ne garder que les conteneurs de l'application (pas ceux de la stack ELK)
+      - drop_event:
+          when:
+            not:
+              regexp:
+                container.name: "^microcrm-(back|front)-"
+
+
+setup.dashboards.enabled: true
+
+setup.kibana:
+  host: "http://kibana:5601"
+  username: elastic
+  password: ${ELASTIC_PASSWORD}
+
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: elastic
+  password: ${ELASTIC_PASSWORD}
+  ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]

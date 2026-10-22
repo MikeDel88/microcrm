@@ -1,5 +1,0 @@
-# Développement local : docker compose -f compose.yml -f compose.dev.yml up --build
-services:
-  back:
-    environment:
-      SPRING_PROFILES_ACTIVE: dev

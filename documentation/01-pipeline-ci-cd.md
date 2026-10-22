@@ -14,29 +14,33 @@
 
 | Événement | Workflow | Contrôles | Pourquoi |
 |-----------|----------|-----------|----------|
-| Push `feature/**`, `fix/**` | `ci.yml` | Tests back et front, build, Checkstyle, ESLint, SonarQube, Gitleaks | Retour rapide au développeur |
-| PR vers `develop` ou `main` | `ci.yml` | Idem + CodeQL, Dependency Review, `npm audit`, build des images et test de fumée (`compose.test.yml`) ; **Trivy** si la cible est `main` ; job `ci-ok` | Condition de fusion |
-| Push (fusion) sur `develop` | `cd.yml` | Build `back` et `front`, push GHCR (`<sha>`, `develop`, `SNAPSHOT`), attestation | Image d'intégration |
-| Push (fusion) sur `main` | `cd.yml` | build → scan Trivy → release → promotion | Livrer une version |
+| PR vers `develop` ou `main` | `ci.yml` | Tests back et front, build, Checkstyle, ESLint, SonarQube, Gitleaks, CodeQL, Dependency Review, `npm audit`, build des images et test de fumée (`compose.test.yml`) ; **Trivy** (même seuil que la CD) ; job `ci-ok` | Condition de fusion |
+| Push (fusion) sur `develop` | `cd.yml` | Build `back` et `front`, scan Trivy, puis push GHCR (`<sha>`, `develop`, `SNAPSHOT`), attestation | Image d'intégration |
+| Push (fusion) sur `main` | `cd.yml` | build + scan Trivy avant push → release → promotion | Livrer une version |
+| Chaque nuit (02 h UTC) ou manuel | `nightly.yml` | Sur les images GHCR `:develop` et `:main` : SBOM CycloneDX, rapport de vulnérabilités (toutes sévérités), contrôle CRITICAL ; `npm audit` en JSON ; arbre de dépendances Gradle | Détecter les CVE publiées après la fusion |
 
-Jobs de `cd.yml` sur `main` :
+La CI ne se déclenche plus sur les push de branche (`feature/**`, `fix/**`) : elle ne tourne que sur PR, ce qui évite la double exécution (push + PR) et fait de `ci-ok` le reflet de tous les contrôles. Pour un retour avant revue, ouvrir une PR en brouillon ou lancer `ci.yml` à la main.
 
-1. **build** : images `microcrm-back` et `microcrm-front` taguées `<sha>` et `main`.
-2. **scan** : Trivy (CRITICAL, vulnérabilités sans correctif ignorées) sur `:<sha>`.
-3. **release** : semantic-release (secret `RELEASE_TOKEN`) : version, `CHANGELOG.md` commité, tag `vX.Y.Z`, GitHub Release.
-4. **promote** (si une version est créée) : retag de `:<sha>` en `:X.Y.Z` et `:latest`, **sans reconstruire**.
-5. **notify-failure** : si un des jobs échoue.
+Les résultats de l'analyse Sonar de chaque PR se consultent sur SonarQube Cloud (onglet Pull Requests du projet). `nightly.yml` publie les artefacts `nightly-<service>-<branche>` (SBOM `*.cdx.json` et `vulns-*.json`), `nightly-npm-audit` et `nightly-gradle-dependencies`. Un échec de l'analyse nocturne (CVE critique corrigeable) crée une issue `nightly-failure`. Un workflow planifié ne tourne que depuis la branche par défaut : `nightly.yml` doit être fusionné sur `main`.
 
-`ci.yml` annule les exécutions concurrentes d'une même branche. `workflow_dispatch` est disponible sur les deux workflows ; en manuel, `cd.yml` construit sans publier et ne lance pas la release.
+La CD n'est pas chaînée à la CI : la protection de branche sur `develop` et `main` (PR obligatoire, `ci-ok` requis) garantit que le code fusionné a passé la CI.
+
+Jobs de `cd.yml` :
+
+1. **build** (matrice `back`, `front`) : construction locale de l'image, **scan Trivy** (CRITICAL, vulnérabilités sans correctif ignorées), puis push GHCR taguée `<sha>` et nom de branche (`SNAPSHOT` sur `develop`) **uniquement si le scan est vert**. Une image vulnérable n'est donc jamais publiée.
+2. **release** (`main`) : semantic-release (secret `RELEASE_TOKEN`) : version, `CHANGELOG.md` commité, tag `vX.Y.Z`, GitHub Release.
+3. **promote** (si une version est créée) : retag de `:<sha>` en `:X.Y.Z` et `:latest`, **sans reconstruire**.
+4. **notify-failure** : si un des jobs échoue.
+
+`ci.yml` annule les exécutions concurrentes d'une même PR. `workflow_dispatch` est disponible sur les deux workflows ; en manuel, `cd.yml` construit sans publier et ne lance pas la release.
 
 ## 3. En cas d'échec
 
 | Où | Conséquence | Action |
 |----|-------------|--------|
-| Push de branche | Check rouge, rien d'autre | Corriger et repousser |
 | PR | `ci-ok` rouge : fusion bloquée | Corriger sur la branche de PR |
-| `build` | Rien de publié ; issue ouverte | Relancer le job si cause temporaire, sinon PR de correction |
-| `scan` (CVE critique) | Ni tag, ni changelog, ni release, ni `X.Y.Z` ; issue ouverte | Corriger la dépendance ou l'image de base, nouvelle PR |
+| `build` (construction ou push) | Rien de publié ; issue ouverte | Relancer le job si cause temporaire, sinon PR de correction |
+| `build`, étape scan (CVE critique) | Image non poussée, ni changelog, ni release, ni `X.Y.Z` ; issue ouverte | Corriger la dépendance ou l'image de base, nouvelle PR |
 | `release` | Pas de version ; issue ouverte | Vérifier `RELEASE_TOKEN` (expiration, bypass de la protection) |
 | `promote` | Release créée, tags `X.Y.Z`/`latest` absents ; issue ouverte | Relancer le job (aucune reconstruction) |
 
