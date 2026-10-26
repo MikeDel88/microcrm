@@ -1,6 +1,6 @@
 # Supervision avec la stack ELK
 
-Elasticsearch, Kibana, Logstash, Filebeat et Metricbeat, avec TLS et authentification, lancés dans un projet Compose distinct de l'application (`compose.elk.yml`, nom `microcrm-elk`).
+Elasticsearch, Kibana, Logstash, Filebeat et Metricbeat, avec TLS et authentification, lancés dans un projet Compose distinct de l'application (`../../compose.elk.yml`, nom `microcrm-elk`).
 
 ## Démarrage
 
@@ -32,7 +32,7 @@ Le conteneur `setup` génère les certificats et le mot de passe `kibana_system`
 | Logs d'accès Caddy (front) | Filebeat | `filebeat-*` | `request.uri`, `status`, `duration` |
 | Conteneurs | Metricbeat, module `docker` | `metricbeat-*` | CPU, mémoire, réseau, healthchecks |
 | Métriques du back | Metricbeat, module `prometheus` | `metricbeat-*` | JVM, `http_server_requests_*`, pool JDBC (profil `dev` uniquement) |
-| Fichiers déposés | Logstash | `logstash-*` | Contenu de `elk/logstash_ingest_data/` |
+| Fichiers déposés | Logstash | `logstash-*` | Contenu de `../../elk/logstash_ingest_data` |
 
 Filebeat ne garde que les conteneurs `microcrm-back-*` et `microcrm-front-*`. Dans Kibana : data view `filebeat-*`, filtre `container.name : "microcrm-back-1"`.
 

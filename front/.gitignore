@@ -46,3 +46,6 @@ Thumbs.db
 
 # ESLint report
 eslint-report.html
+
+# Rapports de tests JUnit (CI)
+/test-results
