@@ -53,7 +53,7 @@ Indicateurs suivis ([04](04-dora-kpi.md)) : temps de build (92 s), temps des tes
 
 ### 2.1 Rôle de SonarQube Cloud
 
-- **Analyse statique à chaque PR**, dans deux projets distincts : `mikedel88_microcrm_back` (Java, couverture JaCoCo) et `mikedel88_microcrm_front` (TypeScript, couverture lcov). Chaque analyse lit le `sonar-project.properties` de son dossier.
+- **Analyse statique à chaque PR**, dans deux projets distincts : `mikedel88_microcrm_back` (Java, couverture JaCoCo) et `mikedel88_microcrm_front` (TypeScript, couverture lcov). Le back est analysé par le plugin Gradle `org.sonarqube` (configuration dans `build.gradle`), qui transmet classpath et classes main/test pour une analyse Java complète ; le front lit `front/sonar-project.properties`.
 - **Quality gate bloquant** : le job attend le verdict de SonarCloud (`sonar.qualitygate.wait=true`). Un gate rouge fait échouer le job `sonar`, donc `ci-ok`, donc la fusion.
 - Le gate par défaut porte sur le **nouveau code** : chaque PR doit être propre, sans exiger de corriger l'historique d'un coup.
 - Les résultats se consultent dans l'onglet *Pull Requests* de chaque projet SonarCloud.

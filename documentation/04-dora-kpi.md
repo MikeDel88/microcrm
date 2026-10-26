@@ -48,6 +48,16 @@ done
 
 Fréquence des erreurs, dans Kibana : data view `filebeat-*`, filtre `container.name : microcrm-back-* and log.level : "ERROR"`, histogramme par heure (voir [03](03-supervision-elk.md)).
 
+Ce que compte ce filtre (vérifié le 26/10/2026) :
+
+| Cas | Réponse | Niveau de log |
+|---|---|---|
+| Exception non gérée (ex. `DELETE /organizations/1`) | 500 | **ERROR** (Tomcat, avec `error.type` et `error.stack_trace`) |
+| Exception gérée par Spring Data REST (ex. `GET /persons/abc`) | 500 | **WARN** (`RepositoryRestExceptionHandler`, avec `error.type`) |
+| JSON invalide, ressource absente | 400, 404 | aucun log |
+
+Le filtre `ERROR` ne voit donc que les exceptions non gérées. Pour compter toutes les réponses 500 : `container.name : microcrm-back-* and (log.level : "ERROR" or (log.level : "WARN" and error.type : *))`.
+
 ## 4. Automatiser la mesure
 
 Quatre workflows sont préparés dans `misc/ci/`, **non actifs** (hors de `.github/workflows/`, jamais exécutés) :

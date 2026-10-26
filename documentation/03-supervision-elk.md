@@ -41,7 +41,9 @@ Limites : les appels API du navigateur vont directement au back (`http://localho
 ## Sécurité et dépannage
 
 - TLS dans toute la stack, mots de passe dans `.env.elk`. Les beats utilisent le compte `elastic` (acceptable en dev, rôles dédiés en production). `docker.sock` et les logs Docker sont montés en lecture seule.
-- Aucun log dans Kibana : vérifier que Filebeat est `Up` (`docker ps`), générer du trafic (`curl localhost:8080/api/organizations`), puis `docker logs microcrm-elk-filebeat01-1`.
+- Au démarrage, Filebeat charge d'abord les dashboards dans Kibana (`setup.dashboards.enabled`) et ne collecte rien pendant ce temps (environ 3 min). Les logs arrivent ensuite, historique compris.
+- Aucun log dans Kibana : vérifier que Filebeat est `Up` (`docker ps`) et que `docker logs microcrm-elk-filebeat01-1` affiche « Harvester started », puis générer du trafic (`curl localhost:8080/organizations` : l'API n'a pas de préfixe `/api`).
+- Tester la remontée d'une erreur : `curl -X DELETE localhost:8080/organizations/1` renvoie un 500 et produit un log `ERROR` (`java.util.ConcurrentModificationException`, bug connu de la suppression d'une organisation liée à des personnes) ; `curl localhost:8080/persons/abc` produit un `WARN` avec `error.type`.
 - Fedora : SELinux peut bloquer les montages de Filebeat (`security_opt: ["label=disable"]`) et firewalld l'accès de Metricbeat à `host.docker.internal:8080`.
 
 L'indicateur suivi dans ELK (fréquence des erreurs) est décrit dans [04](04-dora-kpi.md).
