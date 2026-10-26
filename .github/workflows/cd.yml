@@ -1,16 +1,17 @@
 # CD : publication des images Docker dans GHCR, après fusion d'une PR.
+# Fonctionnement détaillé : documentation/09-deploiement.md
 #
 # Enchaînement :
 #   build (back + front, en parallèle) : construction locale -> scan Trivy -> push si sain
-#     -> release  (main uniquement) : semantic-release calcule la version, tag, CHANGELOG, GitHub Release
-#       -> promote (si une version est créée) : retag de l'image <sha> en <X.Y.Z> et latest, sans reconstruire
-#   notify-failure : ouvre ou commente une issue si un des jobs échoue
+#   notify-failure : ouvre ou commente une issue si la publication échoue
 #
 # Cette CD n'est pas chaînée à ci.yml : la protection de branche sur develop et main
 # (PR obligatoire, check ci-ok requis) garantit que le code fusionné a déjà passé la CI.
 #
 # Lancement manuel (workflow_dispatch) : build + scan uniquement, rien n'est poussé
-# (push conditionné à l'événement push) et la release n'est pas lancée.
+# (push conditionné à l'événement push).
+#
+# Versions SemVer (tags X.Y.Z, changelog) : prévues dans un workflow release.yml dédié.
 name: CD
 
 on:
@@ -23,7 +24,6 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: 20
   REGISTRY: ghcr.io
 
 jobs:
@@ -117,91 +117,12 @@ jobs:
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
-  # RELEASE : version calculée par semantic-release (main uniquement).
-  # Analyse les commits conventionnels (feat/fix/BREAKING CHANGE) ; sans commit éligible,
-  # aucune version n'est créée et le job promote est ignoré. Config : .releaserc.json
-  release:
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-22.04
-    # Une seule release à la fois, jamais annulée en cours de route
-    concurrency:
-      group: release-${{ github.ref }}
-      cancel-in-progress: false
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    # Version créée (vide si aucun commit n'en justifie une), lue par le job promote.
-    # Elle est écrite dans $GITHUB_OUTPUT par le plugin exec de .releaserc.json
-    outputs:
-      version: ${{ steps.release.outputs.version }}
-    steps:
-      # Historique complet (tags et commits) pour calculer la version.
-      # RELEASE_TOKEN (PAT) : permet de pousser le changelog et le tag sur main protégée.
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
-          persist-credentials: true
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-
-      - name: Install release tooling
-        run: npm ci
-
-      # Le commit de changelog "chore(release) [skip ci]" ne relance pas la CD
-      - name: Semantic release
-        id: release
-        run: npx semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-
-  # PROMOTION : retag de l'image :sha en :X.Y.Z et :latest (sans rebuild).
-  # C'est l'image déjà construite et scannée par le job build qui est livrée,
-  # pas une nouvelle construction : ce qui est testé est ce qui est publié.
-  promote:
-    needs: release
-    if: needs.release.outputs.version != ''
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      fail-fast: false
-      matrix:
-        service: [back, front]
-    steps:
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Image name
-        id: image
-        run: |
-          IMAGE=$(echo "${REGISTRY}/${{ github.repository_owner }}/microcrm-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')
-          echo "name=${IMAGE}" >> "$GITHUB_OUTPUT"
-
-      - name: Retag image with release version
-        run: |
-          docker buildx imagetools create \
-            -t "${{ steps.image.outputs.name }}:${{ needs.release.outputs.version }}" \
-            -t "${{ steps.image.outputs.name }}:latest" \
-            "${{ steps.image.outputs.name }}:${{ github.sha }}"
-
-
   # En cas d'échec de la CD, on crée une issue (label publish-failure).
   # Une seule issue ouverte par branche : les échecs suivants la commentent.
   # Elle n'est pas refermée automatiquement.
   notify-failure:
     if: failure()
-    needs: [build, release, promote]
+    needs: [build]
     runs-on: ubuntu-22.04
     permissions:
       issues: write

@@ -8,7 +8,7 @@
 
 | Événement | Workflow | Ce qui s'exécute | Pourquoi |
 |-----------|----------|------------------|----------|
-| PR vers `develop` ou `main` | `ci.yml` | Tests back et front, build, Checkstyle, ESLint, SonarQube (back et front, quality gate bloquant), Gitleaks, CodeQL, Dependency Review, `npm audit`, build et démarrage des images (`compose.yml`, healthchecks), Trivy ; job agrégé `ci-ok` | Condition de fusion |
+| PR vers `develop` ou `main` | `ci.yml` | Tests back et front, build, Checkstyle, ESLint, SonarQube (back et front, quality gate bloquant), Gitleaks, CodeQL, Dependency Review, `npm audit`, build et démarrage des images (`../../compose.yml`, healthchecks), Trivy ; job agrégé `ci-ok` | Condition de fusion |
 | Fusion sur `develop` | `cd.yml` | Build `back` et `front`, scan Trivy, push GHCR (`<sha>`, `develop`, `SNAPSHOT`), attestation | Image d'intégration |
 | Fusion sur `main` | `cd.yml` | Build + scan avant push → release → promotion | Livrer une version |
 | Manuel | `ci.yml`, `cd.yml` (*Run workflow*) | En manuel, `cd.yml` construit sans publier | Relance |

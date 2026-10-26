@@ -33,7 +33,7 @@ Contrôles exécutés avec les tests :
 | **Push sur une branche de travail** (`feature/**`, `fix/**`) | – | Aucun : la CI ne tourne que sur PR (ouvrir une PR en brouillon pour un retour rapide) |
 | **Fusion** sur `develop` ou `main` | `cd.yml` | Pas de nouveaux tests : la protection de branche garantit que la CI est passée ; build et scan des images |
 | **Manuel** | `ci.yml` / `cd.yml` (*Run workflow*) | Relance à la demande |
-| **Périodique** (chaque nuit, 02 h UTC) | `nightly.yml` | Préparé dans `misc/ci/`, **non actif** : SBOM et vulnérabilités des images publiées, `npm audit`, arbre Gradle |
+| **Périodique** (chaque nuit, 02 h UTC) | `nightly.yml` | Préparé dans `../../misc/ci`, **non actif** : SBOM et vulnérabilités des images publiées, `npm audit`, arbre Gradle |
 | **En local** | `./gradlew test`, `npm run test:ci` | Avant d'ouvrir la PR |
 
 ### 1.3 Objectifs
@@ -53,7 +53,7 @@ Indicateurs suivis ([04](04-dora-kpi.md)) : temps de build (92 s), temps des tes
 
 ### 2.1 Rôle de SonarQube Cloud
 
-- **Analyse statique à chaque PR**, dans deux projets distincts : `mikedel88_microcrm_back` (Java, couverture JaCoCo) et `mikedel88_microcrm_front` (TypeScript, couverture lcov). Le back est analysé par le plugin Gradle `org.sonarqube` (configuration dans `build.gradle`), qui transmet classpath et classes main/test pour une analyse Java complète ; le front lit `front/sonar-project.properties`.
+- **Analyse statique à chaque PR**, dans deux projets distincts : `mikedel88_microcrm_back` (Java, couverture JaCoCo) et `mikedel88_microcrm_front` (TypeScript, couverture lcov). Le back est analysé par le plugin Gradle `org.sonarqube` (configuration dans `build.gradle`), qui transmet classpath et classes main/test pour une analyse Java complète ; le front lit `../../front/sonar-project.properties`.
 - **Quality gate bloquant** : le job attend le verdict de SonarCloud (`sonar.qualitygate.wait=true`). Un gate rouge fait échouer le job `sonar`, donc `ci-ok`, donc la fusion.
 - Le gate par défaut porte sur le **nouveau code** : chaque PR doit être propre, sans exiger de corriger l'historique d'un coup.
 - Les résultats se consultent dans l'onglet *Pull Requests* de chaque projet SonarCloud.
@@ -90,7 +90,7 @@ Indicateurs suivis ([04](04-dora-kpi.md)) : temps de build (92 s), temps des tes
 | `npm audit` | PR | Non (informatif) |
 | Trivy sur les images (sévérité CRITICAL, failles sans correctif ignorées) | PR et CD, **avant le push** | Oui |
 
-- Versions maîtrisées : Gradle 8.14.5 (wrapper et `Dockerfile`), images `caddy:2.11.7-alpine` et `gradle:8.14.5-jdk17-alpine`. Les actions GitHub sont référencées par version majeure (`@v6`…).
+- Versions maîtrisées : Gradle 8.14.5 (wrapper et `../../Dockerfile`), images `caddy:2.11.7-alpine` et `gradle:8.14.5-jdk17-alpine`. Les actions GitHub sont référencées par version majeure (`@v6`…).
 - Quand une CVE touche une dépendance transitive, on force la version corrigée en attendant Spring Boot (`build.gradle` : Tomcat 11.0.25, Jackson 3.1.7).
 - Traitement d'une vulnérabilité : lire le rapport, mettre à jour la dépendance ou l'image (ou forcer la version), puis relancer. Une image qui échoue au scan n'est jamais publiée.
 
@@ -110,7 +110,7 @@ Indicateurs suivis ([04](04-dora-kpi.md)) : temps de build (92 s), temps des tes
 
 ### 3.1 Rôle du Dockerfile
 
-Un `Dockerfile` unique à la racine, **multi-étapes**, produit **une image par service** :
+Un `../../Dockerfile` unique à la racine, **multi-étapes**, produit **une image par service** :
 
 | Étape | Image de base | Rôle |
 |-------|---------------|------|
@@ -122,16 +122,16 @@ Un `Dockerfile` unique à la racine, **multi-étapes**, produit **une image par 
 Principes :
 - Les images finales ne contiennent que l'exécution (JRE, Caddy), pas les outils de build : elles sont plus légères et exposent moins de surface d'attaque.
 - Elles tournent avec un utilisateur **non-root** (`USER app`).
-- Le `.dockerignore` limite le contexte de build (pas de `node_modules`, `build`, `.git`).
+- Le `../../.dockerignore` limite le contexte de build (pas de `node_modules`, `build`, `.git`).
 - L'ancienne cible `standalone` (Caddy et Java dans une seule image via supervisord) a été supprimée : elle tournait en root, mélangeait deux processus dans un conteneur et produisait une image à publier en plus.
 
 ### 3.2 Rôle de Docker Compose
 
 | Fichier | Rôle |
 |---------|------|
-| `compose.yml` | Construit les deux images depuis le `Dockerfile` et les lance ensemble (back 8080, front 80/443). Healthchecks : back sur `/actuator/health`, front en HTTPS ; le front attend que le back soit *healthy*. Profil Spring par `SPRING_PROFILES_ACTIVE` (`dev` par défaut). Utilisé en local et par la CI (job `buildx`). |
-| `compose.release.yml` | Surcharge pour exécuter les **images publiées** sur GHCR (`TAG` obligatoire, profil `prod`), sans compiler. |
-| `compose.elk.yml` (+ `elk.sh up / down`) | Stack de supervision Elasticsearch, Kibana, Logstash, Filebeat, Metricbeat (TLS et authentification), projet Compose distinct : voir [03](03-supervision-elk.md). |
+| `../../compose.yml` | Construit les deux images depuis le `../../Dockerfile` et les lance ensemble (back 8080, front 80/443). Healthchecks : back sur `/actuator/health`, front en HTTPS ; le front attend que le back soit *healthy*. Profil Spring par `SPRING_PROFILES_ACTIVE` (`dev` par défaut). Utilisé en local et par la CI (job `buildx`). |
+| `../../compose.release.yml` | Surcharge pour exécuter les **images publiées** sur GHCR (`TAG` obligatoire, profil `prod`), sans compiler. |
+| `../../compose.elk.yml` (+ `elk.sh up / down`) | Stack de supervision Elasticsearch, Kibana, Logstash, Filebeat, Metricbeat (TLS et authentification), projet Compose distinct : voir [03](03-supervision-elk.md). |
 
 ### 3.3 Stratégie de déploiement
 

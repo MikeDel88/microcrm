@@ -31,7 +31,7 @@
     <div class="columns">
       <div class="column">
         <div class="field">
-          <label class="label" for="firstName">First name *</label>
+          <label class="label">First name *</label>
           <div class="control">
             <input
               class="input {{
@@ -43,7 +43,6 @@
               type="text"
               placeholder="John"
               [(ngModel)]="person.firstName"
-              id="firstName"
               name="firstName"
               #firstName="ngModel"
             />
@@ -58,7 +57,7 @@
           </p>
         </div>
         <div class="field">
-          <label class="label" for="lastName">Last name *</label>
+          <label class="label">Last name *</label>
           <div class="control">
             <input
               class="input {{
@@ -70,7 +69,6 @@
               type="text"
               placeholder="Doe"
               [(ngModel)]="person.lastName"
-              id="lastName"
               name="lastName"
               #lastName="ngModel"
             />
@@ -85,7 +83,7 @@
           </p>
         </div>
         <div class="field">
-          <label class="label" for="email">Email</label>
+          <label class="label">Email</label>
           <div class="control">
             <input
               class="input {{
@@ -96,7 +94,6 @@
               type="email"
               placeholder="jdoe@gmail.com"
               [(ngModel)]="person.email"
-              id="email"
               name="email"
               #email="ngModel"
             />
@@ -111,7 +108,7 @@
           </p>
         </div>
         <div class="field">
-          <label class="label" for="phone">Phone</label>
+          <label class="label">Phone</label>
           <div class="control">
             <input
               class="input {{
@@ -120,7 +117,6 @@
                   : ''
               }}"
               [(ngModel)]="person.phone"
-              id="phone"
               name="phone"
               #phone="ngModel"
               type="tel"
@@ -139,14 +135,13 @@
       </div>
       <div class="column">
         <div class="field">
-          <label class="label" for="bio">Bio</label>
+          <label class="label">Bio</label>
           <div class="control">
             <textarea
               class="textarea {{
                 bio.invalid && (bio.dirty || bio.touched) ? 'is-danger' : ''
               }}"
               [(ngModel)]="person.bio"
-              id="bio"
               name="bio"
               #bio="ngModel"
             ></textarea>
@@ -172,12 +167,12 @@
             </div>
           </div>
           <p class="control">
-            <button
-              type="button"
-              class="button is-primary is-large"
-              (click)="addSelectedOrganization()"
-            >
-              <span class="has-text-weight-bold">+</span>
+            <button class="button is-primary is-large">
+              <span
+                class="has-text-weight-bold"
+                (click)="addSelectedOrganization()"
+                >+</span
+              >
             </button>
           </p>
         </div>
