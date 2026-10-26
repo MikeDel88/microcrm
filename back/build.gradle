@@ -5,6 +5,7 @@ plugins {
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'com.adarshr.test-logger' version '4.0.0'
+	id 'org.sonarqube' version '7.5.0.8588'
 }
 
 group = 'com.openclassroom.devops.orion'
@@ -55,5 +56,16 @@ test {
 jacocoTestReport {
 	reports {
 		xml.required = true
+	}
+}
+
+// Analyse SonarQube Cloud : binaires, libraries (main/test) et rapport JaCoCo déduits du modèle Gradle
+sonar {
+	properties {
+		property 'sonar.projectKey', 'mikedel88_microcrm_back'
+		property 'sonar.organization', 'mikedel88'
+		property 'sonar.host.url', 'https://sonarcloud.io'
+		// Le job attend le verdict : échoue si l'analyse est rejetée ou si le quality gate est rouge
+		property 'sonar.qualitygate.wait', 'true'
 	}
 }
