@@ -20,14 +20,14 @@ export class OrganizationService {
 
   async fetchAll() {
     const response = await this.client.get(`${API_BASE_URL}/organizations`)
-    const result = await firstValueFrom(response) as { _embedded: { organizations: Organization[] } }
-    return result._embedded.organizations as Organization[]
+    const result = await firstValueFrom(response) as any
+    return result["_embedded"].organizations as Organization[]
   }
 
   async fetchOrganizationPersons(id: number) {
     const response = await this.client.get(`${API_BASE_URL}/organizations/${id}/persons`)
-    const result = await firstValueFrom(response) as { _embedded: { persons: Person[] } }
-    const persons = result._embedded.persons as Person[]
+    const result = await firstValueFrom(response) as any
+    const persons = result["_embedded"].persons as Person[]
     return persons
   }
 
