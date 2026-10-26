@@ -13,7 +13,7 @@
 | Fusion sur `main` | `cd.yml` | Build + scan avant push → release → promotion | Livrer une version |
 | Manuel | `ci.yml`, `cd.yml` (*Run workflow*) | En manuel, `cd.yml` construit sans publier | Relance |
 
-Un simple push de branche ne déclenche pas la CI (pas de double exécution push + PR) : ouvrir une PR en brouillon pour un retour rapide. La CD n'est pas chaînée à la CI : la protection de branche garantit que le code fusionné a passé la CI.
+Un simple push de branche ne déclenche pas la CI (pas de double exécution push + PR) : ouvrir une PR en brouillon pour un retour rapide. Seule exception : un push sur `main` (fusion) relance les tests et Sonar, pour tenir à jour l'analyse SonarQube Cloud de `main`. La CD n'est pas chaînée à la CI : la protection de branche garantit que le code fusionné a passé la CI.
 
 Jobs de `cd.yml` :
 1. **build** (matrice `back`, `front`) : image construite localement, **scan Trivy** (CRITICAL), push GHCR **uniquement si le scan est vert**.

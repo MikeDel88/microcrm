@@ -3,6 +3,9 @@
 # Déclencheurs : PR vers develop ou main, ou lancement manuel. Pas de déclencheur sur
 # push de branche (feature/**, fix/**) : cela doublerait chaque run quand une PR est ouverte.
 # Pour un retour avant revue, ouvrir une PR en brouillon.
+# Push sur main (après fusion) : tests + sonar uniquement, pour tenir à jour l'analyse
+# SonarQube Cloud de la branche main (couverture globale, historique). Les autres jobs
+# sont ignorés : le code fusionné les a déjà passés dans la PR.
 #
 # Les jobs sont indépendants et tournent en parallèle, sauf sonar (réutilise les rapports des tests).
 #   Tests      : back-tests, front-tests
@@ -19,6 +22,8 @@ name: CI
 on:
   pull_request:
     branches: [develop, main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # Un nouveau push sur la PR annule le run précédent encore en cours
@@ -81,6 +86,7 @@ jobs:
 
   # BUILD : compilation back et front, sans les tests (déjà faits ci-dessus)
   build:
+    if: github.event_name != 'push'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -110,6 +116,7 @@ jobs:
   # QUALITE
   # Détection de secrets sur tout l'historique (fetch-depth 0)
   secrets:
+    if: github.event_name != 'push'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
@@ -119,6 +126,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   linter-back:
+    if: github.event_name != 'push'
     runs-on: ubuntu-22.04
     defaults:
       run:
@@ -139,6 +147,7 @@ jobs:
           name: back-checkstyle
           path: back/build/reports/checkstyle
   linter-front:
+    if: github.event_name != 'push'
     runs-on: ubuntu-22.04
     defaults:
       run:
