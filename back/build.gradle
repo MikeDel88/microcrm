@@ -2,8 +2,8 @@ plugins {
 	id 'java'
 	id 'checkstyle'
 	id 'jacoco'
-	id 'org.springframework.boot' version '4.1.1'
-	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.springframework.boot' version '3.2.5'
+	id 'io.spring.dependency-management' version '1.1.4'
 	id 'com.adarshr.test-logger' version '4.0.0'
 	id 'org.sonarqube' version '7.5.0.8588'
 }
@@ -19,19 +19,16 @@ repositories {
 	mavenCentral()
 }
 
-// Surcharges du BOM Spring Boot 4.1.1 pour corriger des CVE détectées par Trivy.
-// À retirer dès que Spring Boot embarque ces versions (ou plus récentes).
-ext['tomcat.version'] = '11.0.25'
-ext['jackson-bom.version'] = '3.1.7'
-
 dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-rest'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+	// Logs ECS (format Elastic) : la propriété native logging.structured n'existe qu'à partir de Spring Boot 3.4
+	implementation 'co.elastic.logging:logback-ecs-encoder:1.6.0'
 	implementation 'ro.polak:spring-boot-data-fixtures:0.2.0'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	runtimeOnly 'org.hsqldb:hsqldb'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

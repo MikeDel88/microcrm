@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Logs structurés (ECS) sur la console, exploitables par Filebeat/ELK -->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <springProperty name="appName" source="spring.application.name"/>
+
+    <appender name="ECS_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="co.elastic.logging.logback.EcsEncoder">
+            <serviceName>${appName}</serviceName>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="ECS_CONSOLE"/>
+    </root>
+</configuration>
