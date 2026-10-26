@@ -146,8 +146,16 @@ L'API sera disponible sur http://localhost:8080.
 docker compose up --build
 ```
 
-L'application sera disponible sur https://localhost et l'API sur http://localhost:8080. Par défaut, le back utilise le profil `dev` ; pour le profil `test` : `docker compose -f compose.yml -f compose.test.yml up --build`.
+L'application sera disponible sur https://localhost et l'API sur http://localhost:8080. Par défaut, le back utilise le profil `dev` ; pour un autre profil : `SPRING_PROFILES_ACTIVE=prod docker compose up --build`. Le front ne démarre qu'une fois le back *healthy* (`/actuator/health`).
+
+#### Supervision (ELK)
+
+```shell
+./elk.sh up     # ./elk.sh down pour arrêter
+```
+
+Prérequis et détails : [documentation/03-supervision-elk.md](documentation/03-supervision-elk.md).
 
 ## CI/CD
 
-Pipeline GitHub Actions (`.github/workflows/ci.yml` et `cd.yml`), images publiées dans GHCR. Voir la [documentation](documentation/CICD-synthese.md) et, pour lancer chaque étape, [documentation/03-lancer-chaque-etape.md](documentation/03-lancer-chaque-etape.md).
+Pipeline GitHub Actions (`.github/workflows/ci.yml` et `cd.yml`), images publiées dans GHCR. Voir la [documentation](documentation/CICD-synthese.md) et, pour lancer chaque étape, [documentation/01-pipeline-ci-cd.md](documentation/01-pipeline-ci-cd.md).
