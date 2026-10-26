@@ -154,7 +154,7 @@ L'application sera disponible sur https://localhost et l'API sur http://localhos
 ./elk.sh up     # ./elk.sh down pour arrêter
 ```
 
-Prérequis et détails : [documentation/03-supervision-elk.md](documentation/archives/03-supervision-elk.md).
+Prérequis, tableau de bord Kibana et détails : [documentation/11-supervision-elk.md](documentation/11-supervision-elk.md).
 
 ## CI/CD
 
