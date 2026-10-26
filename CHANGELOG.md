@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/MikeDel88/microcrm/compare/v1.1.0...v1.1.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **sonar:** back end with sonar plugin for config and front with sonar-project.properties ([4d70797](https://github.com/MikeDel88/microcrm/commit/4d707973a13d2b8f4f82ee662b07388680199373))
+
 # [1.1.0](https://github.com/MikeDel88/microcrm/compare/v1.0.0...v1.1.0) (2026-10-22)
 
 
