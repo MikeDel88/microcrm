@@ -11,7 +11,7 @@ author: "Michael Delamarre"
 
 | Étape | Déclencheur | Contrôles / actions |
 |-------|-------------|---------------------|
-| CI sur PR | PR vers `develop` / `main` (pas de CI sur simple push de branche) | Tests, build, lint, SonarQube (back et front, quality gate bloquant), Gitleaks, CodeQL, Dependency Review, `npm audit`, build des images et démarrage avec healthchecks ; Trivy ; `ci-ok` requis |
+| CI sur PR | PR vers `develop` / `main` (pas de CI sur simple push de branche ; push sur `main` : tests + Sonar) | Tests, build, lint, SonarQube (back et front, quality gate bloquant), Gitleaks, CodeQL, Dependency Review, `npm audit`, build des images et démarrage avec healthchecks ; Trivy ; `ci-ok` requis |
 | Publication `develop` | Fusion sur `develop` | Build, scan Trivy, puis push GHCR `<sha>`, `develop`, `SNAPSHOT` |
 | Release `main` | Fusion sur `main` | Build + scan Trivy avant push `<sha>` → semantic-release (tag, changelog, GitHub Release) → retag `X.Y.Z` et `latest` |
 | Analyse nocturne (préparée, non active) | Chaque nuit (`misc/ci/nightly.yml`, à copier dans `.github/workflows/`) | SBOM CycloneDX et rapport de vulnérabilités des images `:develop` et `:main`, `npm audit`, dépendances Gradle ; rapports en artefacts |
