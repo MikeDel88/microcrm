@@ -1,0 +1,21 @@
+# Exceptions Trivy documentées (voir documentation/09-deploiement.md, « Exceptions de sécurité »).
+#
+# Contexte : le back est volontairement conservé sur les versions du code de démarrage
+# (Spring Boot 3.2.5, qui embarque Tomcat 10.1.20 et Spring Framework 6.1.6).
+# Les correctifs exigent une montée de version (surcharge Tomcat 10.1.58 ou Spring Boot 4),
+# reportée à une étape ultérieure. Risque accepté pour un projet de démonstration non exposé.
+#
+# Chaque exception expire (exp:) : passée cette date, Trivy la signale de nouveau et
+# bloque la publication, ce qui force un réexamen.
+
+# org.apache.tomcat.embed:tomcat-embed-core 10.1.20 — corrigé en 10.1.35+ / 10.1.55+ / 10.1.58+
+CVE-2025-24813 exp:2027-01-31
+CVE-2026-41293 exp:2027-01-31
+CVE-2026-43512 exp:2027-01-31
+CVE-2026-43515 exp:2027-01-31
+CVE-2026-65182 exp:2027-01-31
+CVE-2026-65905 exp:2027-01-31
+CVE-2026-68525 exp:2027-01-31
+
+# org.springframework:spring-webmvc 6.1.6 — corrigé uniquement en 7.0.9 (Spring Boot 4)
+CVE-2026-47884 exp:2027-01-31

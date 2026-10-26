@@ -57,11 +57,26 @@ Pour revenir en arrière (**rollback**), relancer la même commande avec le SHA 
 
 ## Garanties
 
-- **Aucune image vulnérable publiée** : le scan a lieu avant le push.
+- **Aucune image vulnérable publiée** : le scan a lieu avant le push. Seules les exceptions documentées sont tolérées (voir ci-dessous).
 - **Seul du code validé est publié** : protection de branche et `ci-ok`.
 - **Traçabilité** : tag SHA et attestation de provenance.
 - **Moindre privilège** : `contents: read` par défaut ; `packages: write`, `id-token: write` et `attestations: write` sont accordés au seul job `build`. `GITHUB_TOKEN` suffit pour GHCR, aucun secret supplémentaire n'est nécessaire.
 - **Pas d'écrasement** : deux publications d'une même branche s'enchaînent, aucune n'est annulée.
+
+## Exceptions de sécurité
+
+Le back est volontairement conservé sur les versions du code de démarrage (Spring Boot 3.2.5). Ces versions embarquent des bibliothèques qui présentent des vulnérabilités CRITICAL connues. Pour publier malgré tout, ces CVE sont listées dans `.trivyignore`, à la racine du dépôt. Trivy les ignore lors du scan de `cd.yml`.
+
+| Bibliothèque | Version | CVE | Corrigée en |
+|--------------|---------|-----|-------------|
+| `tomcat-embed-core` | 10.1.20 | CVE-2025-24813, CVE-2026-41293, CVE-2026-43512, CVE-2026-43515, CVE-2026-65182, CVE-2026-65905, CVE-2026-68525 | 10.1.58 |
+| `spring-webmvc` | 6.1.6 | CVE-2026-47884 | 7.0.9 (Spring Boot 4) |
+
+Règles appliquées :
+- **Risque accepté et justifié** : projet de démonstration, non exposé publiquement ; la montée de version est reportée.
+- **Exception ciblée** : seules ces CVE précises sont ignorées. Toute nouvelle CVE critique bloque toujours la publication.
+- **Exception datée** : chaque entrée expire le **31/01/2027** (`exp:`). Passée cette date, Trivy signale de nouveau la CVE et bloque la publication, ce qui oblige à réexaminer le risque.
+- **Sortie prévue** : surcharger `tomcat.version` (10.1.58) dans `back/build.gradle` et passer en Spring Boot 4, puis retirer les entrées de `.trivyignore`.
 
 ## Suivi
 
