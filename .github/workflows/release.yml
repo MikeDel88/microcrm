@@ -1,0 +1,161 @@
+# RELEASE : versions SemVer et releases GitHub (voir documentation/10-release.md).
+#
+# Deux jobs, découplés par le tag :
+#   version : après une CD réussie sur develop / main (images publiées dans GHCR),
+#             semantic-release calcule la version depuis les commits conventionnels, met à
+#             jour CHANGELOG.md, commite et pousse le tag
+#             (develop : release candidate vX.Y.Z-rc.N ; main : version finale vX.Y.Z).
+#   publish : sur push d'un tag v*.*.* (automatique ou manuel), construit le JAR et le build
+#             Angular puis crée la release GitHub avec ces artefacts (pre-release si -rc).
+#
+# Enchaînement : CI (PR, ci-ok) -> fusion -> CD (images) -> release. Pas de version sans image.
+# workflow_run ne s'active que si ce fichier est présent sur la branche par défaut (main).
+#
+# Le tag est poussé avec RELEASE_TOKEN (PAT) : il passe la protection de branche et, à la
+# différence de GITHUB_TOKEN, son push déclenche bien ce workflow sur le tag.
+# Le commit "chore(release)" relance la CD puis ce workflow, sans nouvelle version : pas de boucle.
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CD]
+    types: [completed]
+    branches: [develop, main]
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 20
+  JAVA_DISTRIBUTION: temurin
+  JAVA_VERSION: 17
+
+jobs:
+  # VERSION : calcul de la version, CHANGELOG.md, commit de release et tag.
+  # Uniquement si la CD a réussi sur un push (un lancement manuel de la CD ne publie rien).
+  version:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-22.04
+    # Une seule release à la fois par branche, jamais annulée en cours de route
+    concurrency:
+      group: release-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+    env:
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      CD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      # Branche (et non le SHA) : semantic-release travaille sur une branche.
+      # Historique complet (tags et commits) pour calculer la version.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+          persist-credentials: true
+
+      # On ne versionne que le commit dont la CD a réussi. Si un commit plus récent est
+      # déjà arrivé, sa propre CD déclenchera la release : on s'arrête ici.
+      - name: Commit validé par la CD
+        id: check
+        run: |
+          if [ "$(git rev-parse HEAD)" = "$CD_SHA" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$BRANCH a avancé depuis $CD_SHA : release laissée au run suivant"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.check.outputs.release == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install release tooling
+        if: steps.check.outputs.release == 'true'
+        run: npm ci
+
+      # Sur un événement workflow_run, GITHUB_REF pointe la branche par défaut : semantic-release
+      # croirait toujours être sur main. On masque la détection GitHub Actions pour qu'il lise la
+      # branche réellement extraite (git), et --no-ci évite le mode dry-run hors CI.
+      - name: Semantic release
+        if: steps.check.outputs.release == 'true'
+        run: env -u GITHUB_ACTION -u GITHUB_ACTIONS npx semantic-release --no-ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+  # PUBLISH : release GitHub + artefacts, à partir du commit tagué
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write # création de la release et envoi des artefacts
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      # Tests non relancés : le code a passé ci-ok avant la fusion
+      - name: Build back (JAR)
+        working-directory: back
+        run: |
+          chmod +x gradlew
+          ./gradlew bootJar
+      - name: Build front (Angular)
+        working-directory: front
+        run: |
+          npm ci
+          npm run build
+
+      - name: Package artifacts
+        run: |
+          VERSION="${TAG#v}"
+          mkdir -p dist
+          cp back/build/libs/microcrm.jar "dist/microcrm-${VERSION}.jar"
+          (cd front/dist/microcrm/browser && zip -qr "${GITHUB_WORKSPACE}/dist/microcrm-front-${VERSION}.zip" .)
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          ls -l dist
+
+      # Notes : section de la version dans CHANGELOG.md (titre "#" ou "##" selon le type de version)
+      - name: Release notes
+        run: |
+          VERSION="${TAG#v}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v v="[${VERSION}]" '
+              /^##? \[/ { if (found) exit; if (index($0, v)) { found = 1; next } }
+              found { print }
+            ' CHANGELOG.md > notes.md
+          fi
+          if [ -s notes.md ] && grep -q '[^[:space:]]' notes.md; then
+            echo "NOTES_ARGS=--notes-file notes.md" >> "$GITHUB_ENV"
+          else
+            echo "Aucune section ${VERSION} dans CHANGELOG.md : notes générées par GitHub"
+            echo "NOTES_ARGS=--generate-notes" >> "$GITHUB_ENV"
+          fi
+
+      # Création de la release (pre-release pour une RC) ; si elle existe déjà, mise à jour des artefacts
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRERELEASE=""
+          case "$TAG" in *-*) PRERELEASE="--prerelease" ;; esac
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --verify-tag --title "$TAG" $NOTES_ARGS $PRERELEASE
+          fi

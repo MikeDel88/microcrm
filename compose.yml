@@ -1,3 +1,9 @@
+# Orchestration locale de MicroCRM : docker compose up --build
+# Nom compose.yml : convention par défaut de Docker Compose v2 (docker-compose.yml reste reconnu)
+# Choix techniques détaillés dans documentation/08-conteneurisation.md.
+# Déploiement d'images publiées : surcharge par compose.release.yml.
+name: microcrm
+
 services:
   back:
     build:
@@ -5,8 +11,11 @@ services:
       target: back
     ports:
       - "8080:8080"
+    # Profil Spring choisi à l'exécution, sans rebuild de l'image (dev par défaut)
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+    restart: unless-stopped
+    # Santé exposée par Actuator : conditionne le démarrage du front
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health" ]
       interval: 1m30s
@@ -21,9 +30,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    # Le front ne démarre qu'une fois l'API opérationnelle
     depends_on:
       back:
         condition: service_healthy
+    restart: unless-stopped
     healthcheck:
       # Caddy redirige HTTP -> HTTPS (certificat interne) : on teste HTTPS en ignorant le certificat
       test: [ "CMD", "curl", "-fsk", "-o", "/dev/null", "https://localhost/" ]

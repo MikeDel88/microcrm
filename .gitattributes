@@ -1,0 +1,6 @@
+# Scripts shell exécutés sous Linux (conteneurs, CI) : toujours en LF,
+# même sur un poste Windows avec core.autocrlf=true
+*.sh          text eol=lf
+back/gradlew  text eol=lf
+# Script Windows
+*.bat         text eol=crlf

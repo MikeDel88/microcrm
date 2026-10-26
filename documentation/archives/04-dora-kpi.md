@@ -60,7 +60,7 @@ Le filtre `ERROR` ne voit donc que les exceptions non gérées. Pour compter tou
 
 ## 4. Automatiser la mesure
 
-Quatre workflows sont préparés dans `misc/ci/`, **non actifs** (hors de `.github/workflows/`, jamais exécutés) :
+Quatre workflows sont préparés dans `../../misc/ci`, **non actifs** (hors de `.github/workflows/`, jamais exécutés) :
 
 | Métrique | Fichier | Fréquence | Calcul |
 |---|---|---|---|
@@ -69,7 +69,7 @@ Quatre workflows sont préparés dans `misc/ci/`, **non actifs** (hors de `.gith
 | MTTR | `mttr-weekly.yml` | Chaque lundi | Sur 30 jours, runs `cd.yml` : premier échec → succès suivant ; médiane |
 | Taux d'échec | `cfr-weekly.yml` | Chaque lundi | Sur 30 jours : échecs de pipeline, et échecs après publication (`release` / `promote`, le taux DORA) |
 
-Activation : copier les workflows dans `.github/workflows/` et fusionner sur `main` (un workflow planifié ne tourne que depuis la branche par défaut). Aucun secret requis.
+Activation : copier les workflows dans `../../.github/workflows` et fusionner sur `main` (un workflow planifié ne tourne que depuis la branche par défaut). Aucun secret requis.
 
 ## 5. Suite recommandée
 

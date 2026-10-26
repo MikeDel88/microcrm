@@ -1,8 +1,9 @@
 # Exécution des images publiées dans GHCR (aucun build local).
-# Usage (bash/zsh) : TAG=1.2.0 docker compose -f compose.yml -f compose.release.yml up -d
-# PowerShell : $env:TAG="1.2.0"; docker compose ... — cmd : set "TAG=1.2.0" && docker compose ...
-# (détails : documentation/03-lancer-chaque-etape.md)
-# TAG : version (X.Y.Z), SHA du commit ou, à défaut de mieux, SNAPSHOT / latest (tags mobiles, à éviter pour déployer).
+# Usage (bash/zsh) : TAG=<sha> docker compose -f compose.yml -f compose.release.yml up -d
+# PowerShell : $env:TAG="<sha>"; docker compose ... — cmd : set "TAG=<sha>" && docker compose ...
+# (détails : documentation/09-deploiement.md)
+# TAG : SHA complet du commit (immuable, recommandé) ou, à défaut, develop / main / SNAPSHOT
+# (tags mobiles, à éviter pour déployer). Les versions X.Y.Z arriveront avec le workflow release.yml.
 # Le profil Spring est forcé (prod par défaut), il ne retombe jamais sur `dev`.
 services:
   back:

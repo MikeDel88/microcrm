@@ -9,7 +9,7 @@ COPY ./front /src
 
 RUN npm run build
 
-FROM gradle:8.14.5-jdk17-alpine AS back-build
+FROM gradle:8.7.0-jdk17-alpine AS back-build
 
 WORKDIR /src
 

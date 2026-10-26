@@ -146,7 +146,7 @@ L'API sera disponible sur http://localhost:8080.
 docker compose up --build
 ```
 
-L'application sera disponible sur https://localhost et l'API sur http://localhost:8080. Par défaut, le back utilise le profil `dev` ; pour un autre profil : `SPRING_PROFILES_ACTIVE=prod docker compose up --build`. Le front ne démarre qu'une fois le back *healthy* (`/actuator/health`).
+L'application sera disponible sur https://localhost et l'API sur http://localhost:8080. Par défaut, le back utilise le profil `dev` ; pour un autre profil : `SPRING_PROFILES_ACTIVE=prod docker compose up --build`. Le front ne démarre qu'une fois le back *healthy* (`/actuator/health`). Orchestration décrite dans `compose.yml`, choix techniques dans [documentation/08-conteneurisation.md](documentation/08-conteneurisation.md).
 
 #### Supervision (ELK)
 
@@ -154,8 +154,12 @@ L'application sera disponible sur https://localhost et l'API sur http://localhos
 ./elk.sh up     # ./elk.sh down pour arrêter
 ```
 
-Prérequis et détails : [documentation/03-supervision-elk.md](documentation/03-supervision-elk.md).
+Prérequis et détails : [documentation/03-supervision-elk.md](documentation/archives/03-supervision-elk.md).
 
 ## CI/CD
 
-Pipeline GitHub Actions (`.github/workflows/ci.yml` et `cd.yml`), images publiées dans GHCR. Voir la [documentation](documentation/CICD-synthese.md) et, pour lancer chaque étape, [documentation/01-pipeline-ci-cd.md](documentation/01-pipeline-ci-cd.md).
+Pipeline GitHub Actions (`.github/workflows/ci.yml` et `cd.yml`), images publiées dans GHCR. Voir la [documentation](documentation/archives/CICD-synthese.md) et, pour lancer chaque étape, [documentation/01-pipeline-ci-cd.md](documentation/archives/01-pipeline-ci-cd.md).
+
+- CI (build, tests, SonarQube Cloud) : [documentation/07-pipeline-ci.md](documentation/07-pipeline-ci.md)
+- Publication des images et déploiement : [documentation/09-deploiement.md](documentation/09-deploiement.md)
+- Releases GitHub (versions, changelog, artefacts) : [documentation/10-release.md](documentation/10-release.md)
