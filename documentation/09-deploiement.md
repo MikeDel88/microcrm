@@ -40,26 +40,29 @@ Images : `ghcr.io/mikedel88/microcrm-back` et `ghcr.io/mikedel88/microcrm-front`
 
 | Tag | Quand | Usage |
 |-----|-------|-------|
-| `<sha>` (SHA complet du commit) | Chaque publication | **Immuable : à utiliser pour déployer** |
+| `X.Y.Z` / `X.Y.Z-rc.N` | À chaque release, ajouté par le job `publish` de `release.yml` (voir [10-release.md](10-release.md)) | **Fixe : à utiliser pour déployer une version** |
+| `<sha>` (SHA complet du commit) | Chaque publication de la CD | Immuable : à utiliser pour déployer une image hors version |
 | `develop` / `main` | Selon la branche | Tag mobile : dernière image de la branche |
 | `SNAPSHOT` | Sur `develop` | Tag mobile : dernière image d'intégration |
 
+Le tag `X.Y.Z` est ajouté à une image **déjà publiée**, sans la reconstruire. L'image d'une version est donc exactement celle que la CD a scannée et attestée, avec le même digest.
+
 ## Déployer une image publiée
 
-`compose.release.yml` surcharge `compose.yml` : les images sont **tirées de GHCR** au lieu d'être construites, et le profil Spring `prod` est forcé.
+`compose.release.yml` surcharge `compose.yml` : les images sont **tirées de GHCR** au lieu d'être construites, et le profil Spring `prod` est forcé. Les images sont publiques : aucun `docker login` n'est nécessaire.
 
 ```shell
-docker login ghcr.io                     # si les packages sont privés
-TAG=<sha> docker compose -f compose.yml -f compose.release.yml up -d
+TAG=1.2.0 docker compose -f compose.yml -f compose.release.yml up -d    # une version
+TAG=<sha> docker compose -f compose.yml -f compose.release.yml up -d    # une image hors version
 ```
 
-Pour revenir en arrière (**rollback**), relancer la même commande avec le SHA précédent. L'image est déjà dans le registre, aucun rebuild n'est nécessaire.
+Pour revenir en arrière (**rollback**), relancer la même commande avec la version précédente. L'image est déjà dans le registre, aucun rebuild n'est nécessaire. Le détail est dans [14-plan-deploiement.md](14-plan-deploiement.md).
 
 ## Garanties
 
 - **Aucune image vulnérable publiée** : le scan a lieu avant le push. Seules les exceptions documentées sont tolérées (voir ci-dessous).
 - **Seul du code validé est publié** : protection de branche et `ci-ok`.
-- **Traçabilité** : tag SHA et attestation de provenance.
+- **Traçabilité** : tag SHA, tag de version et attestation de provenance.
 - **Moindre privilège** : `contents: read` par défaut ; `packages: write`, `id-token: write` et `attestations: write` sont accordés au seul job `build`. `GITHUB_TOKEN` suffit pour GHCR, aucun secret supplémentaire n'est nécessaire.
 - **Pas d'écrasement** : deux publications d'une même branche s'enchaînent, aucune n'est annulée.
 
@@ -86,7 +89,7 @@ Règles appliquées :
 
 ## Évolutions prévues
 
-- **Versions et releases GitHub** : mises en place par le workflow `release.yml` (voir [10-release.md](10-release.md)). Reste à retaguer l'image `<sha>` déjà publiée en `X.Y.Z`, sans rebuild.
+- **Versions et releases GitHub** : mises en place par le workflow `release.yml`, qui retague aussi les images en `X.Y.Z` (voir [10-release.md](10-release.md)).
 - **Déploiement automatique** sur un serveur cible. Aujourd'hui, la commande compose est lancée manuellement.
 
 ## Limites

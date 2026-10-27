@@ -2,8 +2,8 @@
 # Usage (bash/zsh) : TAG=<sha> docker compose -f compose.yml -f compose.release.yml up -d
 # PowerShell : $env:TAG="<sha>"; docker compose ... — cmd : set "TAG=<sha>" && docker compose ...
 # (détails : documentation/09-deploiement.md)
-# TAG : SHA complet du commit (immuable, recommandé) ou, à défaut, develop / main / SNAPSHOT
-# (tags mobiles, à éviter pour déployer). Les versions X.Y.Z arriveront avec le workflow release.yml.
+# TAG : version X.Y.Z (ou X.Y.Z-rc.N), ajoutée par release.yml, ou SHA complet du commit.
+# Ces deux tags sont fixes. develop / main / SNAPSHOT sont mobiles : à éviter pour déployer.
 # Le profil Spring est forcé (prod par défaut), il ne retombe jamais sur `dev`.
 services:
   back:

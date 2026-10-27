@@ -61,6 +61,8 @@ PR validée par la CI ──► fusion ──► build des images ──► scan
 - L'environnement cible tire les images au tag voulu avec le compose de release, puis un healthcheck vérifie le démarrage.
 - Retour arrière (*rollback*) : redéployer le tag précédent.
 
+Mise en œuvre : [08 Conteneurisation](08-conteneurisation.md), [09 Déploiement](09-deploiement.md), [10 Release](10-release.md) ; plan de déploiement finalisé dans [14 Plan de déploiement](14-plan-deploiement.md).
+
 ## Principes retenus
 
 - **Build once, deploy many** : un seul build, promu d'un environnement à l'autre.
