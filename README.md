@@ -163,3 +163,4 @@ Pipeline GitHub Actions (`.github/workflows/ci.yml` et `cd.yml`), images publié
 - CI (build, tests, SonarQube Cloud) : [documentation/07-pipeline-ci.md](documentation/07-pipeline-ci.md)
 - Publication des images et déploiement : [documentation/09-deploiement.md](documentation/09-deploiement.md)
 - Releases GitHub (versions, changelog, artefacts) : [documentation/10-release.md](documentation/10-release.md)
+- Plan de déploiement (étapes, ordre, prérequis, rollback) : [documentation/14-plan-deploiement.md](documentation/14-plan-deploiement.md)
