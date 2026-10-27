@@ -134,7 +134,7 @@ elk/kibana/dashboard-microcrm.ndjson
 1. *Stack Management > Saved Objects*.
 2. Rechercher `MicroCRM`, puis cocher le dashboard **MicroCRM – Supervision**.
 3. *Export* : laisser **Include related objects** activé. Les visualisations, la recherche et la data view sont alors incluses ; sans elles, le dashboard importé serait vide.
-4. Renommer le fichier téléchargé (`export.ndjson`) en `elk/kibana/dashboard-microcrm.ndjson`, puis le commiter.
+4. Renommer le fichier téléchargé (`dahsboard-microcrm.ndjson`) en `elk/kibana/dashboard-microcrm.ndjson`, puis le commiter.
 
 #### Import depuis l'interface
 1. *Stack Management > Saved Objects > Import*.
