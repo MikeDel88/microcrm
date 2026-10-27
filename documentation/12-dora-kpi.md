@@ -281,27 +281,6 @@ Chaque fiche suit le même ordre : **données**, **périmètre**, **calcul**, **
 2. Remonter la couverture : tests des composants front et des contrôleurs back.
 3. Relever les valeurs de ce tableau sur 30 jours, puis les comparer d'un relevé à l'autre.
 
-## 5. Sources
-
-**Pipeline (CI/CD)**
-
-```bash
-# Runs d'un workflow : conclusion, head_branch, event, run_started_at, updated_at
-curl -s "https://api.github.com/repos/MikeDel88/microcrm/actions/workflows/cd.yml/runs?branch=main&event=push&per_page=100"
-curl -s "https://api.github.com/repos/MikeDel88/microcrm/actions/workflows/release.yml/runs?per_page=100"
-curl -s "https://api.github.com/repos/MikeDel88/microcrm/actions/workflows/ci.yml/runs?status=success&per_page=100"
-# Jobs et étapes d'un run : steps[].started_at / steps[].completed_at
-curl -s "https://api.github.com/repos/MikeDel88/microcrm/actions/runs/<run_id>/jobs"
-# Releases publiées : published_at, prerelease
-curl -s "https://api.github.com/repos/MikeDel88/microcrm/releases?per_page=100"
-# Commits livrés dans une version (lead time)
-git log --no-merges --format='%h %aI %s' vA..vB
-# Qualité Sonar, pour chaque projet
-for P in mikedel88_microcrm_back mikedel88_microcrm_front; do
-  curl -s "https://sonarcloud.io/api/measures/component?component=$P&metricKeys=bugs,vulnerabilities,code_smells,coverage,new_coverage,duplicated_lines_density"
-  curl -s "https://sonarcloud.io/api/qualitygates/project_status?projectKey=$P"
-done
-```
 
 **Application (ELK)** : dans Kibana, data view `filebeat-*`.
 
