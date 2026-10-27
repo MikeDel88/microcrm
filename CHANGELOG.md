@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/MikeDel88/microcrm/compare/v1.1.2...v1.1.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* **front:** use `Number.parseInt` instead of `parseInt` in components ([eac79e2](https://github.com/MikeDel88/microcrm/commit/eac79e2e3d57ee06e3ac657358b7604161d18a7c))
+
 ## [1.1.3-rc.1](https://github.com/MikeDel88/microcrm/compare/v1.1.2...v1.1.3-rc.1) (2026-10-27)
 
 
