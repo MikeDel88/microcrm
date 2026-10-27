@@ -142,7 +142,7 @@ jobs:
       # Front : config dans front/sonar-project.properties
       - name: Sonar front
         if: ${{ !cancelled() }}
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v8
         with:
           projectBaseDir: front
         env:
