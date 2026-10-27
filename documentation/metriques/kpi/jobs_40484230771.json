@@ -1,0 +1,463 @@
+{
+  "total_count": 6,
+  "jobs": [
+    {
+      "id": 122133711256,
+      "run_id": 40484230771,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/MikeDel88/microcrm/actions/runs/40484230771",
+      "run_attempt": 2,
+      "node_id": "CR_kwDOVBKTN88AAAAcb7yJmA",
+      "head_sha": "a7be8edaade036aa6ccbb85cc138498bbdedebb2",
+      "url": "https://api.github.com/repos/MikeDel88/microcrm/actions/jobs/122133711256",
+      "html_url": "https://github.com/MikeDel88/microcrm/actions/runs/40484230771/job/122133711256",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-27T10:20:59Z",
+      "started_at": "2026-10-27T10:21:02Z",
+      "completed_at": "2026-10-27T10:22:41Z",
+      "name": "sonar",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-27T10:21:03Z",
+          "completed_at": "2026-10-27T10:21:05Z"
+        },
+        {
+          "name": "Run actions/checkout@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-27T10:21:05Z",
+          "completed_at": "2026-10-27T10:21:06Z"
+        },
+        {
+          "name": "Run actions/download-artifact@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-27T10:21:06Z",
+          "completed_at": "2026-10-27T10:21:08Z"
+        },
+        {
+          "name": "Run actions/download-artifact@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-27T10:21:08Z",
+          "completed_at": "2026-10-27T10:21:09Z"
+        },
+        {
+          "name": "Run actions/setup-java@v6",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-27T10:21:09Z",
+          "completed_at": "2026-10-27T10:21:12Z"
+        },
+        {
+          "name": "Sonar back",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-27T10:21:12Z",
+          "completed_at": "2026-10-27T10:22:02Z"
+        },
+        {
+          "name": "Sonar front",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-27T10:22:02Z",
+          "completed_at": "2026-10-27T10:22:38Z"
+        },
+        {
+          "name": "Post Run actions/setup-java@v6",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-27T10:22:38Z",
+          "completed_at": "2026-10-27T10:22:38Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 14,
+          "started_at": "2026-10-27T10:22:38Z",
+          "completed_at": "2026-10-27T10:22:38Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-27T10:22:38Z",
+          "completed_at": "2026-10-27T10:22:38Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/MikeDel88/microcrm/check-runs/122133711256",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001049,
+      "runner_name": "GitHub Actions 1000001049",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 122133712390,
+      "run_id": 40484230771,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/MikeDel88/microcrm/actions/runs/40484230771",
+      "run_attempt": 2,
+      "node_id": "CR_kwDOVBKTN88AAAAcb7yOBg",
+      "head_sha": "a7be8edaade036aa6ccbb85cc138498bbdedebb2",
+      "url": "https://api.github.com/repos/MikeDel88/microcrm/actions/jobs/122133712390",
+      "html_url": "https://github.com/MikeDel88/microcrm/actions/runs/40484230771/job/122133712390",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-27T10:20:59Z",
+      "started_at": "2026-10-27T09:53:30Z",
+      "completed_at": "2026-10-27T09:54:27Z",
+      "name": "front",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-27T09:53:31Z",
+          "completed_at": "2026-10-27T09:53:33Z"
+        },
+        {
+          "name": "Run actions/checkout@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-27T09:53:33Z",
+          "completed_at": "2026-10-27T09:53:33Z"
+        },
+        {
+          "name": "Run actions/setup-node@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-27T09:53:33Z",
+          "completed_at": "2026-10-27T09:53:41Z"
+        },
+        {
+          "name": "Run npm ci",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-27T09:53:41Z",
+          "completed_at": "2026-10-27T09:53:51Z"
+        },
+        {
+          "name": "Tests front",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-27T09:53:51Z",
+          "completed_at": "2026-10-27T09:54:11Z"
+        },
+        {
+          "name": "Build front",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-27T09:54:11Z",
+          "completed_at": "2026-10-27T09:54:19Z"
+        },
+        {
+          "name": "Rapport de tests front",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-27T09:54:19Z",
+          "completed_at": "2026-10-27T09:54:20Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-27T09:54:20Z",
+          "completed_at": "2026-10-27T09:54:22Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-27T09:54:22Z",
+          "completed_at": "2026-10-27T09:54:24Z"
+        },
+        {
+          "name": "Post Run actions/setup-node@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-10-27T09:54:24Z",
+          "completed_at": "2026-10-27T09:54:24Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 18,
+          "started_at": "2026-10-27T09:54:24Z",
+          "completed_at": "2026-10-27T09:54:24Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 19,
+          "started_at": "2026-10-27T09:54:24Z",
+          "completed_at": "2026-10-27T09:54:24Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/MikeDel88/microcrm/check-runs/122133712390",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001044,
+      "runner_name": "GitHub Actions 1000001044",
+      "runner_group_id": null,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 122133751497,
+      "run_id": 40484230771,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/MikeDel88/microcrm/actions/runs/40484230771",
+      "run_attempt": 2,
+      "node_id": "CR_kwDOVBKTN88AAAAcb70myQ",
+      "head_sha": "a7be8edaade036aa6ccbb85cc138498bbdedebb2",
+      "url": "https://api.github.com/repos/MikeDel88/microcrm/actions/jobs/122133751497",
+      "html_url": "https://github.com/MikeDel88/microcrm/actions/runs/40484230771/job/122133751497",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-27T10:21:05Z",
+      "started_at": "2026-10-27T09:53:30Z",
+      "completed_at": "2026-10-27T09:54:14Z",
+      "name": "back",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-27T09:53:31Z",
+          "completed_at": "2026-10-27T09:53:33Z"
+        },
+        {
+          "name": "Run actions/checkout@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-27T09:53:33Z",
+          "completed_at": "2026-10-27T09:53:35Z"
+        },
+        {
+          "name": "Run actions/setup-java@v6",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-27T09:53:35Z",
+          "completed_at": "2026-10-27T09:53:42Z"
+        },
+        {
+          "name": "Run chmod +x gradlew",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-27T09:53:42Z",
+          "completed_at": "2026-10-27T09:53:43Z"
+        },
+        {
+          "name": "Build et tests back",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-27T09:53:43Z",
+          "completed_at": "2026-10-27T09:54:07Z"
+        },
+        {
+          "name": "Rapport de tests back",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 6,
+          "started_at": "2026-10-27T09:54:07Z",
+          "completed_at": "2026-10-27T09:54:08Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 7,
+          "started_at": "2026-10-27T09:54:08Z",
+          "completed_at": "2026-10-27T09:54:09Z"
+        },
+        {
+          "name": "Run actions/upload-artifact@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-27T09:54:09Z",
+          "completed_at": "2026-10-27T09:54:12Z"
+        },
+        {
+          "name": "Post Run actions/setup-java@v6",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-27T09:54:12Z",
+          "completed_at": "2026-10-27T09:54:12Z"
+        },
+        {
+          "name": "Post Run actions/checkout@v7",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-27T09:54:12Z",
+          "completed_at": "2026-10-27T09:54:12Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 17,
+          "started_at": "2026-10-27T09:54:12Z",
+          "completed_at": "2026-10-27T09:54:12Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/MikeDel88/microcrm/check-runs/122133751497",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001045,
+      "runner_name": "GitHub Actions 1000001045",
+      "runner_group_id": null,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 122134450641,
+      "run_id": 40484230771,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/MikeDel88/microcrm/actions/runs/40484230771",
+      "run_attempt": 2,
+      "node_id": "CR_kwDOVBKTN88AAAAcb8fR0Q",
+      "head_sha": "a7be8edaade036aa6ccbb85cc138498bbdedebb2",
+      "url": "https://api.github.com/repos/MikeDel88/microcrm/actions/jobs/122134450641",
+      "html_url": "https://github.com/MikeDel88/microcrm/actions/runs/40484230771/job/122134450641",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-27T10:22:41Z",
+      "started_at": "2026-10-27T10:22:44Z",
+      "completed_at": "2026-10-27T10:22:48Z",
+      "name": "ci-ok",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-27T10:22:45Z",
+          "completed_at": "2026-10-27T10:22:45Z"
+        },
+        {
+          "name": "Run if [[ \"false\" == \"true\" || \"false\" == \"true\" ]]; then",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-27T10:22:45Z",
+          "completed_at": "2026-10-27T10:22:46Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-27T10:22:46Z",
+          "completed_at": "2026-10-27T10:22:46Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/MikeDel88/microcrm/check-runs/122134450641",
+      "labels": [
+        "ubuntu-22.04"
+      ],
+      "runner_id": 1000001050,
+      "runner_name": "GitHub Actions 1000001050",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    },
+    {
+      "id": 122134504594,
+      "run_id": 40484230771,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/MikeDel88/microcrm/actions/runs/40484230771",
+      "run_attempt": 2,
+      "node_id": "CR_kwDOVBKTN88AAAAcb8ikkg",
+      "head_sha": "a7be8edaade036aa6ccbb85cc138498bbdedebb2",
+      "url": "https://api.github.com/repos/MikeDel88/microcrm/actions/jobs/122134504594",
+      "html_url": "https://github.com/MikeDel88/microcrm/runs/122134504594",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-27T10:22:49Z",
+      "started_at": "2026-10-27T10:22:49Z",
+      "completed_at": "2026-10-27T10:22:49Z",
+      "name": "Tests back (JUnit)",
+      "steps": [
+
+      ],
+      "check_run_url": "https://api.github.com/repos/MikeDel88/microcrm/check-runs/122134504594",
+      "labels": [
+
+      ],
+      "runner_id": null,
+      "runner_name": null,
+      "runner_group_id": null,
+      "runner_group_name": null
+    },
+    {
+      "id": 122134506003,
+      "run_id": 40484230771,
+      "workflow_name": "CI",
+      "head_branch": "main",
+      "run_url": "https://api.github.com/repos/MikeDel88/microcrm/actions/runs/40484230771",
+      "run_attempt": 2,
+      "node_id": "CR_kwDOVBKTN88AAAAcb8iqEw",
+      "head_sha": "a7be8edaade036aa6ccbb85cc138498bbdedebb2",
+      "url": "https://api.github.com/repos/MikeDel88/microcrm/actions/jobs/122134506003",
+      "html_url": "https://github.com/MikeDel88/microcrm/runs/122134506003",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-10-27T10:22:49Z",
+      "started_at": "2026-10-27T10:22:49Z",
+      "completed_at": "2026-10-27T10:22:49Z",
+      "name": "Tests front (Karma)",
+      "steps": [
+
+      ],
+      "check_run_url": "https://api.github.com/repos/MikeDel88/microcrm/check-runs/122134506003",
+      "labels": [
+
+      ],
+      "runner_id": null,
+      "runner_name": null,
+      "runner_group_id": null,
+      "runner_group_name": null
+    }
+  ]
+}
