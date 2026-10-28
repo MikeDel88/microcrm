@@ -12,12 +12,12 @@ Les métriques forment deux familles, selon leur source :
 
 | Famille | Métrique | Type | Valeur | Objectif ou repère (élite / élevé / moyen / faible pour les DORA) |
 |---|---|---|---|---|
-| Pipeline (CI/CD) | Fréquence de déploiement | DORA | **0,36 / jour** (4 releases en 11 jours, 16/10 → 27/10/2026) ≈ 2,5 / semaine : niveau **élevé** ; CD réussies : 7 (0,64 / jour). Données : [`metriques`](metriques/dora/releases.json), [`metriques`](metriques/dora/runs_cd.json) | plusieurs / jour · 1 / jour à 1 / semaine · 1 / semaine à 1 / mois · < 1 / mois |
-| Pipeline (CI/CD) | Délai de mise en production (lead time) | DORA | **≈ 45 h** (1,9 jour), médiane des médianes des 4 releases (v1.0.0 : 44,5 h · v1.1.0 : 70,1 h · v1.1.1 : 46,2 h · v1.1.2 : 1,2 h) : niveau **élevé**. Données : `git log` entre les tags, [`metriques`](metriques/dora/releases.json) | < 1 jour · 1 jour à 1 semaine · 1 semaine à 1 mois · > 1 mois |
+| Pipeline (CI/CD) | Fréquence de déploiement | DORA | **0,36 / jour** (4 releases en 11 jours, 16/10 → 27/10/2026) ≈ 2,5 / semaine : niveau **élevé** ; CD réussies : 7 (0,64 / jour). Données : [`metriques/dora/releases.json`](metriques/dora/releases.json), [`metriques/dora/runs_cd.json`](metriques/dora/runs_cd.json) | plusieurs / jour · 1 / jour à 1 / semaine · 1 / semaine à 1 / mois · < 1 / mois |
+| Pipeline (CI/CD) | Délai de mise en production (lead time) | DORA | **≈ 45 h** (1,9 jour), médiane des médianes des 4 releases (v1.0.0 : 44,5 h · v1.1.0 : 70,1 h · v1.1.1 : 46,2 h · v1.1.2 : 1,2 h) : niveau **élevé**. Données : `git log` entre les tags, [`metriques/dora/releases.json`](metriques/dora/releases.json) | < 1 jour · 1 jour à 1 semaine · 1 semaine à 1 mois · > 1 mois |
 | Pipeline (CI/CD) | Taux d'échec des changements (CFR) | DORA | **0 %** (0 échec après publication sur 7 mises en production `main`, 16/10 → 27/10/2026) : niveau **élite**. Hors CFR : 1 échec avant publication sur `develop` (1 / 12 = 8,3 %, issue #38). Données : API GitHub, runs `cd.yml` et `release.yml` | ≤ 5 % · ≤ 10 % · ≤ 15 % · > 15 % |
 | Pipeline (CI/CD) | Temps de rétablissement (MTTR) | DORA | **non mesurable** sur `main` : aucun incident du 16/10 au 27/10/2026 (0 ÷ 0, ce n'est pas 0). Pour information : 1 incident sur `develop` (issue #38), rétabli en **19 min**, sous le seuil élite (< 1 h). Données : API GitHub, runs `cd.yml` | < 1 h · < 1 jour · 1 jour à 1 semaine · > 1 semaine |
-| Pipeline (CI/CD) | Temps de build | KPI | **37 s** (médiane sur les 5 runs CI réussis depuis la refonte du 26/10 : back 30 s, tests back inclus, + front 7 s) : objectif **atteint**. Run CI complet : 152 s (≈ 2,5 min). Données : API GitHub, jobs des runs `ci.yml` | < 3 min |
-| Pipeline (CI/CD) | Temps des tests back / front | KPI | **back ≈ 1 s** d'exécution JUnit (relevé local du 26/10, **à confirmer en CI**) / **front 18 s** (médiane sur les 5 runs CI depuis le 26/10) : objectif **atteint**. Données : rapports JUnit `back/build/test-results`, API GitHub (étape « Tests front ») | < 2 min chacun |
+| Pipeline (CI/CD) | Temps de build | KPI | **37 s** (médiane sur les 5 runs CI réussis depuis la refonte du 26/10 : back 30 s, tests back inclus, + front 7 s) : objectif **atteint**. Run CI complet : 152 s (≈ 2,5 min). Données : API GitHub, jobs des runs `ci.yml` ; liste des runs dans [`metriques/kpi/build.json`](metriques/kpi/build.json) | < 3 min |
+| Pipeline (CI/CD) | Temps des tests back / front | KPI | **back ≈ 1 s** d'exécution JUnit (relevé local du 26/10, **à confirmer en CI**) / **front 18 s** (médiane sur les 5 runs CI depuis le 26/10) : objectif **atteint**. Données : rapports JUnit `back/build/test-results`, API GitHub (étape « Tests front », runs de [`metriques/kpi/build.json`](metriques/kpi/build.json)) | < 2 min chacun |
 | Pipeline (CI/CD) | Qualité Sonar | KPI | **Quality gate `OK`** (back et front, analyse du 27/10/2026). Code global : couverture **56,4 %** (back) / **26,4 %** (front) ; bugs 0 / 20 ; vulnérabilités 3 / 1 ; code smells 7 / 16 ; duplication 9,1 % / 0,0 %. Objectif **partiellement atteint** : le gate passe, mais la couverture et la dette héritée restent hors objectif. Données : API SonarCloud | gate `OK` ; couverture > 60 % (> 80 % sur le nouveau code) ; 0 bug / vulnérabilité / code smell ; duplication < 3 % |
 | Application (ELK) | Fréquence des erreurs | KPI | **Non représentative à ce jour** : l'application n'est pas en production, elle ne tourne qu'en local lors des tests manuels. Il n'y a pas de trafic réel, donc le nombre d'erreurs dépend uniquement des requêtes envoyées à la main. La chaîne de mesure (Filebeat → Elasticsearch → Kibana) est en place ; le KPI sera relevé une fois l'application en production | stable ou en baisse ; toute barre `ERROR` est analysée |
 
@@ -72,10 +72,10 @@ Chaque fiche suit le même ordre : **données**, **périmètre**, **calcul**, **
   3. diviser chaque nombre par la durée de la période (par jour ou par semaine).
 
   Le chiffre retenu pour la DF est celui des **releases finales**. Le nombre de runs CD sert de complément.
-- **Outil** : requêtes `curl` sur l'API GitHub (section 5), réponses enregistrées dans `dora/DF/`.
-- **Relevé du 27/10/2026** : réponses JSON de l'API GitHub enregistrées dans le répertoire `metriques` :
-  - [`metriques`](metriques/dora/runs_cd.json) : `https://api.github.com/repos/MikeDel88/microcrm/actions/workflows/cd.yml/runs?branch=main&event=push&status=success`. Il donne `total_count` = 7, avec des runs du 16/10 au 27/10 ;
-  - [`metriques`](metriques/dora/releases.json) : `https://api.github.com/repos/MikeDel88/microcrm/releases`. Il contient 4 releases finales (`v1.0.0` à `v1.1.2`, `prerelease = false`, `draft = false`) ;
+- **Outil** : requêtes `curl` sur l'API GitHub (section 5), réponses enregistrées dans [`metriques/dora/`](metriques/dora/).
+- **Relevé du 27/10/2026** : réponses JSON de l'API GitHub enregistrées dans le répertoire [`metriques/dora/`](metriques/dora/) :
+  - [`metriques/dora/runs_cd.json`](metriques/dora/runs_cd.json) : `https://api.github.com/repos/MikeDel88/microcrm/actions/workflows/cd.yml/runs?branch=main&event=push&status=success`. Il donne `total_count` = 7, avec des runs du 16/10 au 27/10 ;
+  - [`metriques/dora/releases.json`](metriques/dora/releases.json) : `https://api.github.com/repos/MikeDel88/microcrm/releases`. Il contient 4 releases finales (`v1.0.0` à `v1.1.2`, `prerelease = false`, `draft = false`) ;
   - calcul : 4 releases ÷ 11 jours = 0,36 / jour ≈ 2,5 / semaine ; 7 runs CD ÷ 11 jours = 0,64 / jour.
 - **Limites** : un run relancé puis réussi ne compte qu'une fois. Le commit `chore(release)` relance la CD sans créer de version : il gonfle le nombre de runs, mais pas celui des releases.
 
@@ -90,8 +90,8 @@ Chaque fiche suit le même ordre : **données**, **périmètre**, **calcul**, **
   1. pour chaque commit livré : délai = `published_at` de la release − date d'auteur du commit (`%aI`, qui ne change pas lors d'un rebase), les deux en UTC ;
   2. trier les délais et prendre la médiane de la version ;
   3. sur la période, prendre la médiane des médianes de chaque version.
-- **Outil** : `git log` entre les tags (section 5) ; dates de publication dans `dora/DF/releases.json`.
-- **Relevé du 27/10/2026** : commits lus avec `git log` entre les tags, dates de publication tirées de [`metriques`](metriques/dora/releases.json).
+- **Outil** : `git log` entre les tags (section 5) ; dates de publication dans [`metriques/dora/releases.json`](metriques/dora/releases.json).
+- **Relevé du 27/10/2026** : commits lus avec `git log` entre les tags, dates de publication tirées de [`metriques/dora/releases.json`](metriques/dora/releases.json).
 
   | Release | Publiée (UTC) | Commits livrés | Médiane | Min | Max |
   |---|---|---|---|---|---|
@@ -162,7 +162,7 @@ Chaque fiche suit le même ordre : **données**, **périmètre**, **calcul**, **
   - back : durée de l'étape **« Build et tests back »** (`./gradlew build`). Le back construit et teste dans une seule commande, et l'API ne donne pas la durée des tests (le rapport « Tests back (JUnit) » n'indique que le nombre de tests). La valeur retenue **inclut donc les tests back**. Pour les retirer, il faut lire leur durée dans l'artefact `back-reports` (`build/reports/tests/test/index.html`) ;
   - temps de build = somme back + front ; on prend la médiane sur les runs.
 - **Outil** : requête `curl` (section 5) ; durée de chaque étape dans l'onglet du run GitHub Actions.
-- **Relevé du 27/10/2026** : API GitHub, `https://api.github.com/repos/MikeDel88/microcrm/actions/workflows/ci.yml/runs?status=success&per_page=10`, puis `.../actions/runs/<id>/jobs` pour chaque run.
+- **Relevé du 27/10/2026** : API GitHub, `https://api.github.com/repos/MikeDel88/microcrm/actions/workflows/ci.yml/runs?status=success&per_page=10`, puis `.../actions/runs/<id>/jobs` pour chaque run. La liste des runs CI réussis (52 au 27/10/2026) est enregistrée dans [`metriques/kpi/build.json`](metriques/kpi/build.json).
 
   Seuls les runs **#80 à #87** sont retenus : ils utilisent le `ci.yml` actuel (jobs `back`, `front`, `sonar`). Les runs précédents (#69 à #75) utilisaient l'ancien pipeline (jobs `build`, `back-tests`, `front-tests`, `codeql`, `linter-*`…), dont les étapes ne mesurent pas la même chose.
 

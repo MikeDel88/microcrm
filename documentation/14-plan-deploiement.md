@@ -36,9 +36,12 @@ La chaîne complète, de la modification du code à l'application en service :
 |---|---|---|---|---|
 | Développement | branche de travail | construites localement | `dev` | `docker compose up --build` |
 | Intégration | `develop` | tag `X.Y.Z-rc.N` (et `<sha>`, `develop`, `SNAPSHOT`) | `prod` | compose de release |
+| **Préproduction** (cible) | `develop` | tag `X.Y.Z-rc.N` | `prod` | compose de release, sur un serveur identique à la production |
 | Production (cible) | `main` | tag `X.Y.Z` (et `<sha>`, `main`) | `prod` | compose de release |
 
 La **même image** passe de l'intégration à la production : seule la configuration change, par le profil Spring.
+
+Le serveur de **préproduction** reproduit la production (même procédure, mêmes fichiers Compose, base anonymisée, supervision). Chaque release candidate y est déployée et testée avant de passer sur `main`. Son rôle et les tests à y mener sont décrits dans [16 Plan de mise à jour](16-plan-mise-a-jour.md), section 2.
 
 ### Quel tag déployer
 
@@ -60,7 +63,7 @@ git rev-parse vX.Y.Z^        # SHA à déployer pour une version antérieure
 | 1. Pull request vers `develop` | développeur | CI : build, tests back et front, analyse Sonar | `ci-ok` vert, quality gate `OK` |
 | 2. Fusion sur `develop` | revue de la PR | CD : images construites, scannées, publiées (`SNAPSHOT`) | scan Trivy sans CVE CRITICAL non acceptée |
 | 3. Release candidate | CD réussie | `release.yml` : version `vX.Y.Z-rc.N`, pre-release GitHub | release créée |
-| 4. Validation en intégration | équipe | déploiement de l'image `develop` (section B), tests de fumée | application saine |
+| 4. Validation en préproduction | équipe | déploiement de la RC (`TAG=X.Y.Z-rc.N`, section B) sur le serveur de préproduction, puis les tests de [16](16-plan-mise-a-jour.md) §2 | RC validée |
 | 5. PR `develop` → `main` | équipe | CI de nouveau | `ci-ok` vert |
 | 6. Fusion sur `main` | revue de la PR | CD : images de livraison publiées | scan Trivy |
 | 7. Version finale | CD réussie | `release.yml` : version `vX.Y.Z`, changelog, release GitHub avec le JAR et le build Angular | release publiée |
