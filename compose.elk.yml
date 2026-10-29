@@ -51,6 +51,7 @@ services:
     depends_on:
       setup:
         condition: service_healthy
+    restart: unless-stopped
     image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
     volumes:
       - certs:/usr/share/elasticsearch/config/certs
@@ -89,6 +90,7 @@ services:
     depends_on:
       es01:
         condition: service_healthy
+    restart: unless-stopped
     image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
     volumes:
       - certs:/usr/share/kibana/config/certs
@@ -117,6 +119,7 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
+    restart: unless-stopped
     image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
     user: root
     volumes:
@@ -136,6 +139,7 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
+    restart: unless-stopped
     image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
     user: root
     volumes:
@@ -155,6 +159,7 @@ services:
         condition: service_healthy
       kibana:
         condition: service_healthy
+    restart: unless-stopped
     image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
     user: root
     volumes:
