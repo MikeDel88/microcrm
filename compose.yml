@@ -15,6 +15,10 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
     restart: unless-stopped
+    # Driver json-file requis : Filebeat lit /var/lib/docker/containers/*/*.log,
+    # format produit uniquement par json-file (pas par le driver "local" par défaut)
+    logging:
+      driver: json-file
     # Santé exposée par Actuator : conditionne le démarrage du front
     healthcheck:
       test: [ "CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health" ]
@@ -43,3 +47,5 @@ services:
       retries: 3
       start_period: 40s
       start_interval: 5s
+    logging:
+      driver: json-file
