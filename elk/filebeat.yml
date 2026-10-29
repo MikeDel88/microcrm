@@ -20,7 +20,7 @@ filebeat.inputs:
           when:
             not:
               regexp:
-                container.name: "^microcrm-(back|front)-"
+                container.name: "^/?microcrm-(back|front)-"
 
 
 setup.dashboards.enabled: true
